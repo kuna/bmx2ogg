@@ -28,3 +28,5 @@
 
 ### known problems / TODO / etc
 - current ogg quality is 0.95 (-1 ~ 1). maybe CBR 375kbps?
+- ```Title/Artist``` metadata is automatically written if you encode as ogg.
+- Raw audio data decoding part is still Sooooo nasty & only supports ```*.ogg/*.wav``` currently. Need to work more about this.
