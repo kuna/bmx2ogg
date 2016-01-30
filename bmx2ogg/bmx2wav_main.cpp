@@ -109,22 +109,21 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	// load bms file
 	BmsBms bms;
-	try {
-		BmsParser::Parse(BMX2WAVParameter::bms_path, bms);
+	BmsParser::Parser p(bms);
+	if (!p.Load(BMX2WAVParameter::bms_path.c_str())) {
+		printf("Error occured during parsing Bms file!\n");
+		printf("Details:\n");
+		printf(p.GetLog().c_str());
 	}
-	catch (BmsFileNotSupportedEncoding &e) {
-		wprintf(L"Failed to make proper iconv encoding\n");
-		return -1;
-	}
-	BmsTimeManager bms_time;
-	BmsNoteContainer bms_note;
-	bms.CalculateTime(bms_time);
-	bms.GetNotes(bms_note);
-
+	std::wstring artist_ = L"(none)";
+	std::wstring title_ = L"(none)";
+	bms.GetHeaders().Query("ARTIST", artist_);
+	bms.GetHeaders().Query("TITLE", title_);
 	// should we have to change filename?
-	if (BMX2WAVParameter::autofilename && bms.GetHeaders().IsExists(L"TITLE") && bms.GetHeaders().IsExists(L"ARTIST")) {
-		std::wstring newname = L"[" + bms.GetHeaders()[L"ARTIST"] + L"] " + bms.GetHeaders()[L"TITLE"];
-		BMX2WAVParameter::output_path = IO::substitute_filename(BMX2WAVParameter::output_path, newname);
+	if (BMX2WAVParameter::autofilename) {
+		wchar_t newname_[1024];
+		swprintf_s(newname_, L"[%ls] %ls", artist_, title_);
+		BMX2WAVParameter::output_path = IO::substitute_filename(BMX2WAVParameter::output_path, newname_);
 	}
 	// replace invalid char
 	BMX2WAVParameter::output_path = IO::make_filename_safe(BMX2WAVParameter::output_path);
@@ -136,9 +135,9 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	// print brief information
 	wprintf(L"BMS Path: %ls\n", BMX2WAVParameter::bms_path.c_str());
-	if (bms.GetHeaders().IsExists(L"TITLE"))
-		wprintf(L"BMS Title: %ls\n", bms.GetHeaders()[L"TITLE"].c_str());
-	wprintf(L"BMS Length: %.03lf (sec)\n", bms_time.GetEndTime());
+	wprintf(L"BMS Title: %ls\n", title_);
+	wprintf(L"BMS Artist: %ls\n", artist_);
+	wprintf(L"BMS Length: %.03lf (sec)\n", bms.GetEndTime());
 	wprintf(L"Output Path: %ls\n", BMX2WAVParameter::output_path.c_str());
 
 	// load audio data
@@ -148,8 +147,10 @@ int _tmain(int argc, _TCHAR* argv[])
 	std::vector<unsigned int> last_used_wav_pos(BmsConst::WORD_MAX_COUNT, 0);
 	for (unsigned int i = 0; i < BmsConst::WORD_MAX_COUNT; ++i) {
 		BmsWord word(i);
-		if (bms.GetRegistArraySet()[L"WAV"].IsExists(word)) {
-			std::wstring path(IO::get_filedir(BMX2WAVParameter::bms_path) + PATH_SEPARATOR + bms.GetRegistArraySet()[L"WAV"][word]);
+		if (bms.GetRegistArraySet()["WAV"].IsExists(word)) {
+			std::wstring path(IO::get_filedir(BMX2WAVParameter::bms_path) + 
+				PATH_SEPARATOR + 
+				bms.GetRegistArraySet()["WAV"].At_w(word));
 			std::wstring ogg_path = IO::substitute_extension(path, L".ogg");
 
 			if (path == BMX2WAVParameter::output_path) {
@@ -189,20 +190,25 @@ int _tmain(int argc, _TCHAR* argv[])
 	wprintf(L"Start Mixing ...\n");
 	HQWav result;
 	double mixing_pos;
-	for (int i = 0; i <= bms.GetPlayableMaxPosition(); i++) {
-		mixing_pos = bms_time.GetRow(i).time * HQWav::FREQUENCY;
+	std::set<barindex> barmap;
+	bms.GetChannelManager().GetObjectExistBar(barmap);
+	BmsNoteManager note;
+	bms.GetNoteData(note);
+	for (auto it = barmap.begin(); it != barmap.end(); ++it) {
+		barindex bar = *it;
+		mixing_pos = bms.GetTimeManager().GetTimeFromBar(bar) * HQWav::FREQUENCY;
 		for (BmsChannelManager::ConstIterator it = bms.GetChannelManager().Begin(); it != bms.GetChannelManager().End(); ++it) {
 			BmsChannel& current_channel = *it->second;
 			for (BmsChannel::ConstIterator it2 = current_channel.Begin(); it2 != current_channel.End(); it2++) {
-				BmsChannelBuffer& current_buffer = **it2;
-				BmsWord current_word = current_buffer[i];
+				BmsBuffer& current_buffer = **it2;
+				BmsWord current_word = current_buffer.Get(bar);
 				int wav_channel = current_word.ToInteger();
 
 				if (current_channel.IsShouldPlayWavChannel() && current_word != BmsWord::MIN) {
 					// check is Longnote channel & Longnote ending sound
 					// if it does, ignore it
 					if (current_channel.IsLongNoteChannel()
-						&& bms_note[current_channel.GetChannelNumber()][i].type == BmsNote::NOTE_LNEND) {
+						&& note[current_channel.GetChannelNumber()].Get(bar).type == BmsNote::NOTE_LNEND) {
 						continue;
 					}
 					if (!wav_table.IsLoaded(wav_channel)) {
@@ -229,17 +235,13 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	// write (setting tag)
 	wprintf(L"Writing file ...\n");
-	std::wstring tag_title;
-	std::wstring tag_artist;
-	if (bms.GetHeaders().IsExists(L"TITLE"))	tag_title = bms.GetHeaders()[L"TITLE"];
-	if (bms.GetHeaders().IsExists(L"ARTIST"))	tag_artist = bms.GetHeaders()[L"ARTIST"];
 	try {
 		if (BMX2WAVParameter::output_type == BMX2WAVParameter::OUTPUT_WAV) {
 			result.WriteToFile(BMX2WAVParameter::output_path);
 		}
 		else if (BMX2WAVParameter::output_type == BMX2WAVParameter::OUTPUT_OGG) {
 			HQOgg ogg(&result);
-			ogg.SetMetadata(tag_title, tag_artist);
+			ogg.SetMetadata(title_, artist_);
 			ogg.WriteToFile(BMX2WAVParameter::output_path);
 		}
 	}
