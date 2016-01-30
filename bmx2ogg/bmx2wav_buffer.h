@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdlib.h>
+
 template <typename T>
 class DynamicBuffer {
 private:

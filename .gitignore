@@ -11,6 +11,7 @@ Release
 
 # dev libs
 lib
+build
 
 # temporary project
 rhythmusbmsparser

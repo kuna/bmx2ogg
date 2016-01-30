@@ -2,35 +2,39 @@
 //
 
 #include "targetver.h"
-#include "bmsbel\bms_bms.h"
-#include "bmsbel\bms_parser.h"
+#include "bmsbel/bms_bms.h"
+#include "bmsbel/bms_parser.h"
 #include "bmx2wav_common.h"
-#include "bms_resource.h"
 #include "exception.h"
+#ifdef _WIN32
 #include <tchar.h>
+#endif
 #include <wchar.h>
 #include <string>
+#include <string.h>
+#include <stdio.h>
 
+#include "bms_resource.h"
 #include "bmx2wav_wav_maker.h"
 #include "bmx2wav_ogg.h"
 using namespace Bmx2Wav;
 
 #define NOT(v) (!(v))
-#define CMP(a, b) (wcscmp((a), (b)) == 0)
+#define CMP(a, b) (strcmp(a, b) == 0)
 
 namespace BMX2WAVParameter {
 	enum OUTPUT_TYPE { OUTPUT_OGG, OUTPUT_WAV } output_type;
-	std::wstring bms_path;
-	std::wstring output_path;
+	std::string bms_path;
+	std::string output_path;
 	bool overwrite;
 	bool autofilename;
 
-	std::wstring substitute_output_extension(const std::wstring& filename) {
+	std::string substitute_output_extension(const std::string& filename) {
 		if (output_type == OUTPUT_OGG) {
-			return IO::substitute_extension(filename, L".ogg");
+			return IO::substitute_extension(filename, ".ogg");
 		}
 		else {
-			return IO::substitute_extension(filename, L".wav");
+			return IO::substitute_extension(filename, ".wav");
 		}
 	}
 
@@ -50,8 +54,25 @@ namespace BMX2WAVParameter {
 			);
 	}
 
+#ifdef _WIN32
 	int parse(int argc, _TCHAR* argv[]) {
-		if (argc <= 1 || CMP(argv[1], L"-?") || CMP(argv[1], L"-h")) {
+		// convert all arguments to utf8
+		char** args = new char[argc];
+		for (int i = 0; i < argc; i++) {
+			args[i] = new char[1024];
+			ENCODING::wchar_to_utf8(argv[i], args[i], 1024);
+		}
+		int r = parse(argc, args);
+		for (int i = 0; i < argc; i++) {
+			delete args[i];
+		}
+		delete args;
+		return r;
+	}
+#else
+
+	int parse(int argc, char** argv) {
+		if (argc <= 1 || CMP(argv[1], "-?") || CMP(argv[1], "-h")) {
 			return -1;
 		}
 
@@ -64,42 +85,47 @@ namespace BMX2WAVParameter {
 
 		// parse
 		for (int i = 2; i < argc; i++) {
-			if (CMP(argv[i], L"-oc")) {
+			if (CMP(argv[i], "-oc")) {
 				// it's default, so do nothing
 			}
-			else if (CMP(argv[i], L"-ob")) {
+			else if (CMP(argv[i], "-ob")) {
 				// destion to bms directory
 				output_path = substitute_output_extension(bms_path);
 			}
-			else if (CMP(argv[i], L"-o")) {
+			else if (CMP(argv[i], "-o")) {
 				if (++i == argc)
 					return -1;
 				output_path = argv[i];
-				if (output_path.back() == PATH_SEPARATOR_CHAR) {
+				if (output_path.back() == '\\' || output_path.back() == '/') {
 					// if destination is folder, then automatically add filename
 					output_path = output_path + substitute_output_extension(IO::get_filename(bms_path));
 				}
 			}
-			else if (CMP(argv[i], L"-ow")) {
+			else if (CMP(argv[i], "-ow")) {
 				overwrite = true;
 			}
-			else if (CMP(argv[i], L"-wav")) {
+			else if (CMP(argv[i], "-wav")) {
 				output_type = OUTPUT_WAV;
 				output_path = substitute_output_extension(output_path);
 			}
-			else if (CMP(argv[i], L"-ogg")) {
+			else if (CMP(argv[i], "-ogg")) {
 				// it's default, so do nothing
 			}
-			else if (CMP(argv[i], L"-noautofn")) {
+			else if (CMP(argv[i], "-noautofn")) {
 				autofilename = false;
 			}
 		}
 
 		return 0;
 	}
+#endif
 }
 
+#ifdef _WIN32
 int _tmain(int argc, _TCHAR* argv[])
+#else
+int main(int argc, char** argv)
+#endif
 {
 	// parse argument
 	if (BMX2WAVParameter::parse(argc, argv) == -1) {
@@ -115,46 +141,46 @@ int _tmain(int argc, _TCHAR* argv[])
 		printf("Details:\n");
 		printf(p.GetLog().c_str());
 	}
-	std::wstring artist_ = L"(none)";
-	std::wstring title_ = L"(none)";
+	std::string artist_ = "(none)";
+	std::string title_ = "(none)";
 	bms.GetHeaders().Query("ARTIST", artist_);
 	bms.GetHeaders().Query("TITLE", title_);
 	// should we have to change filename?
 	if (BMX2WAVParameter::autofilename) {
-		wchar_t newname_[1024];
-		swprintf_s(newname_, L"[%ls] %ls", artist_.c_str(), title_.c_str());
+		char newname_[1024];
+		sprintf(newname_, "[%s] %s", artist_.c_str(), title_.c_str());
 		BMX2WAVParameter::output_path = IO::substitute_filename(BMX2WAVParameter::output_path, newname_);
 	}
 	// replace invalid char
 	BMX2WAVParameter::output_path = IO::make_filename_safe(BMX2WAVParameter::output_path);
 	// check overwrite file exists
 	if (!BMX2WAVParameter::overwrite && IO::is_file_exists(BMX2WAVParameter::output_path)) {
-		wprintf(L"output file already exists!");
+		printf("output file already exists!");
 		return -1;
 	}
 
 	// print brief information
-	wprintf(L"BMS Path: %ls\n", BMX2WAVParameter::bms_path.c_str());
-	wprintf(L"BMS Title: %ls\n", title_.c_str());
-	wprintf(L"BMS Artist: %ls\n", artist_.c_str());
-	wprintf(L"BMS Length: %.03lf (sec)\n", bms.GetEndTime());
-	wprintf(L"Output Path: %ls\n", BMX2WAVParameter::output_path.c_str());
+	printf("BMS Path: %ls\n", BMX2WAVParameter::bms_path.c_str());
+	printf("BMS Title: %ls\n", title_.c_str());
+	printf("BMS Artist: %ls\n", artist_.c_str());
+	printf("BMS Length: %.03lf (sec)\n", bms.GetEndTime());
+	printf("Output Path: %ls\n", BMX2WAVParameter::output_path.c_str());
 
 	// load audio data
-	wprintf(L"Loading Audio Data ...\n");
+	printf("Loading Audio Data ...\n");
 	WavMaker wav_maker(true);	// true: use low-pass filter
 	BmsWavResource<HQWav> wav_table;
 	std::vector<unsigned int> last_used_wav_pos(BmsConst::WORD_MAX_COUNT, 0);
 	for (unsigned int i = 0; i < BmsConst::WORD_MAX_COUNT; ++i) {
 		BmsWord word(i);
 		if (bms.GetRegistArraySet()["WAV"].IsExists(word)) {
-			std::wstring path(IO::get_filedir(BMX2WAVParameter::bms_path) + 
+			std::string path(IO::get_filedir(BMX2WAVParameter::bms_path) + 
 				PATH_SEPARATOR + 
-				bms.GetRegistArraySet()["WAV"].At_w(word));
-			std::wstring ogg_path = IO::substitute_extension(path, L".ogg");
+				bms.GetRegistArraySet()["WAV"].At(word));
+			std::string ogg_path = IO::substitute_extension(path, ".ogg");
 
 			if (path == BMX2WAVParameter::output_path) {
-				wprintf(L"Bmx resource file path(%ls) cannot same with output path!\n", path.c_str());
+				printf("Bmx resource file path(%s) cannot same with output path!\n", path.c_str());
 				return -1;
 			}
 
@@ -162,7 +188,7 @@ int _tmain(int argc, _TCHAR* argv[])
 			bool ogg_path_exists = IO::is_file_exists(ogg_path);
 
 			if (NOT(path_exists) && NOT(ogg_path_exists)) {
-				wprintf(L"[Warning] Cannot find wav/ogg file(%ls). ignore.\n", path.c_str());
+				printf("[Warning] Cannot find wav/ogg file(%s). ignore.\n", path.c_str());
 				wav_table.SetWAV(word.ToInteger(), wav_maker.MakeNewWav());	// Set Null Sound
 			}
 			else {
@@ -177,7 +203,7 @@ int _tmain(int argc, _TCHAR* argv[])
 					}
 				}
 				catch (Bmx2WavInvalidWAVFile& e) {
-					wprintf(L"Cannot parse wav/ogg file(%ls) correctly. ignore.\n", path.c_str());
+					printf("Cannot parse wav/ogg file(%s) correctly. ignore.\n", path.c_str());
 					wav_table.SetWAV(word.ToInteger(), wav_maker.MakeNewWav());	// Set Null Sound
 				}
 			}
@@ -187,7 +213,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	}
 
 	// start mixing
-	wprintf(L"Start Mixing ...\n");
+	printf("Start Mixing ...\n");
 	HQWav result;
 	double mixing_pos;
 	std::set<barindex> barmap;
@@ -229,12 +255,12 @@ int _tmain(int argc, _TCHAR* argv[])
 	}
 
 	// normalize
-	wprintf(L"Normalize ...\n");
+	printf("Normalize ...\n");
 	double change_ratio;
 	result.AverageNormalize(&change_ratio);
 
 	// write (setting tag)
-	wprintf(L"Writing file ...\n");
+	printf("Writing file ...\n");
 	try {
 		if (BMX2WAVParameter::output_type == BMX2WAVParameter::OUTPUT_WAV) {
 			result.WriteToFile(BMX2WAVParameter::output_path);
@@ -246,14 +272,14 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 	}
 	catch (Bmx2WavInvalidFile& e) {
-		wprintf(L"[ERROR] Cannot write file to %ls. Check other program is using the output file.\n", BMX2WAVParameter::output_path.c_str());
-		wprintf(e.Message().c_str());
-		wprintf(L"\n");
+		printf("[ERROR] Cannot write file to %s. Check other program is using the output file.\n", BMX2WAVParameter::output_path.c_str());
+		printf(e.Message().c_str());
+		printf("\n");
 		return -1;
 	}
 
 	// finished!
-	wprintf(L"Finished!\n");
+	printf("Finished!\n");
 
 	return 0;
 }

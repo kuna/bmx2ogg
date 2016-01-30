@@ -8,7 +8,6 @@
 
 #include "exception.h"
 #include "bmx2wav_wav.h"
-#include "bmx2wav_common.h"
 
 using namespace Bmx2Wav;
 
@@ -18,6 +17,9 @@ using namespace Bmx2Wav;
 /*
  * some utility functions
  */
+
+const int HQWav::Tick::MaxValue;
+const int HQWav::Tick::MinValue;
 
 // -- HQWav::Tick --------------------------------------------------------
 HQWav::Tick::Tick(void) :
@@ -382,7 +384,7 @@ void
 HQWav::Trim(int start, int end)
 {
 	if (start > end) {
-		throw Bmx2WavInternalException(L"Internal Exception - Wrong HQWav::Trim() Argument");
+		throw Bmx2WavInternalException(_T("Internal Exception - Wrong HQWav::Trim() Argument"));
 	}
 
 	std::vector<Tick> new_data;
@@ -417,7 +419,7 @@ void
 HQWav::FadeIn(int start, int end, double ratio)
 {
 	if (start > end) {
-		throw Bmx2WavInternalException(L"Internal Exception - Wrong HQWav::FadeIn() Argument");
+		throw Bmx2WavInternalException(_T("Internal Exception - Wrong HQWav::FadeIn() Argument"));
 	}
 
 	double tmp = ratio;
@@ -436,7 +438,7 @@ void
 HQWav::FadeOut(int start, int end, double ratio)
 {
 	if (start > end) {
-		throw Bmx2WavInternalException(L"Internal Exception - Wrong HQWav::FadeOut() Argument");
+		throw Bmx2WavInternalException(_T("Internal Exception - Wrong HQWav::FadeOut() Argument"));
 	}
 
 	double tmp = 1.0;
@@ -474,7 +476,7 @@ namespace Bmx2Wav {
 	// -- WavFileWriter ----------------------------------------------------
 	class WavFileWriter {
 	public:
-		explicit WavFileWriter(const std::wstring& filename);
+		explicit WavFileWriter(const std::string& filename);
 		~WavFileWriter();
 
 		class WriteException {};
@@ -482,16 +484,16 @@ namespace Bmx2Wav {
 		void WriteInteger(int data);
 
 	private:
-		const std::wstring filename_;
+		const std::string filename_;
 		FILE* file_;
 	};
 }
 
 // -- WavFileWriter ------------------------------------------------------
-WavFileWriter::WavFileWriter(const std::wstring& filename) :
-filename_(filename),
-file_(_wfopen(filename.c_str(), L"wb+"))	// overwrites file
+WavFileWriter::WavFileWriter(const std::string& filename) :
+filename_(filename)
 {
+	file_ = IO::openfile(filename.c_str(), "wb+");
 	if (file_ == NULL) {
 		throw Bmx2WavInvalidFile(filename, errno);
 	}
@@ -530,7 +532,7 @@ void HQWav::WriteToBuffer(std::vector<char>& buffer)
 }
 
 void
-HQWav::WriteToFile(const std::wstring& filename)
+HQWav::WriteToFile(const std::string& filename)
 {
 	try {
 		if (NOT(IO::make_parent_directory_recursive(IO::get_filedir(filename)))) {

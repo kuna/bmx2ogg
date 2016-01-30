@@ -1,7 +1,7 @@
 #include "bmx2wav_ogg.h"
 using namespace Bmx2Wav;
 
-#include "vorbis\vorbisenc.h"
+#include "vorbis/vorbisenc.h"
 #include "bmx2wav_common.h"
 #include "exception.h"
 #include <time.h>
@@ -36,20 +36,20 @@ void HQOgg::SetPtr(HQWav* wav)
 	this->wav = wav;
 }
 
-void HQOgg::SetMetadata(const std::wstring& title, const std::wstring& artist)
+void HQOgg::SetMetadata(const std::string& title, const std::string& artist)
 {
 	this->title = title;
 	this->artist = artist;
 }
 
-void HQOgg::WriteToFile(const std::wstring& path) {
+void HQOgg::WriteToFile(const std::string& path) {
 	// make raw data first ...
 	std::vector<char> raw_data;
 	wav->WriteToBuffer(raw_data);
 
 	// open fp...
-	FILE *f;
-	if (_wfopen_s(&f, path.c_str(), L"wb+") != 0)
+	FILE *f = IO::openfile(path.c_str(), "wb+");
+	if (!f)
 		throw Bmx2WavInvalidFile(path, errno);
 
 
@@ -112,10 +112,8 @@ void HQOgg::WriteToFile(const std::wstring& path) {
 	vorbis_comment_init(&vc);
 	char utf8_buf[256];
 	vorbis_comment_add_tag(&vc, "ENCODER", "Bmx2Ogg");
-	if (ENCODING::wchar_to_utf8(artist.c_str(), utf8_buf, 256))
-		vorbis_comment_add_tag(&vc, "ARTIST", utf8_buf);
-	if (ENCODING::wchar_to_utf8(title.c_str(), utf8_buf, 256))
-		vorbis_comment_add_tag(&vc, "TITLE", utf8_buf);
+	vorbis_comment_add_tag(&vc, "ARTIST", artist.c_str());
+	vorbis_comment_add_tag(&vc, "TITLE", title.c_str());
 
 	/* set up the analysis state and auxiliary encoding storage */
 	vorbis_analysis_init(&vd, &vi);

@@ -1,6 +1,7 @@
 #ifndef BMX2WAV_WAV_H_
 #define BMX2WAV_WAV_H_
 
+#include "bmx2wav_common.h"
 #include <string>
 #include <vector>
 
@@ -84,7 +85,7 @@ namespace Bmx2Wav {
 
 		void Clear(void);
 
-		void WriteToFile(const std::wstring& filename);
+		void WriteToFile(const std::string& filename);
 		void WriteToBuffer(std::vector<char>& buffer);
 	private:
 		// -- SimpleIterator -------------------------------------------------

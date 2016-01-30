@@ -15,10 +15,10 @@ using namespace Bmx2Wav;
 #pragma warning(disable:4996)
 
 // -- WavFileReader ------------------------------------------------------
-WavFileReader::WavFileReader(const std::wstring& filename) :
-filename_(filename),
-file_(_wfopen(filename.c_str(), L"rb"))
+WavFileReader::WavFileReader(const std::string& filename) :
+filename_(filename)
 {
+	file_ = IO::openfile(filename.c_str(), "rb");
 	if (file_ == NULL) {
 		throw Bmx2WavInvalidFile(filename, errno);
 	}
@@ -89,7 +89,7 @@ WavMaker::MakeNewWav(void)
 }
 
 HQWav*
-WavMaker::MakeNewWavFromWavFile(const std::wstring& filename, bool overlook_error)
+WavMaker::MakeNewWavFromWavFile(const std::string& filename, bool overlook_error)
 {
 	HQWav* wav = this->MakeNewWav();
 	try {
@@ -97,7 +97,7 @@ WavMaker::MakeNewWavFromWavFile(const std::wstring& filename, bool overlook_erro
 
 		// RIFF header
 		if (reader.ReadInteger() != HQWav::RIFF_HEADER && NOT(overlook_error)) {
-			throw Bmx2WavInvalidWAVFile(filename, L"RIFF header");
+			throw Bmx2WavInvalidWAVFile(filename, _T("RIFF header"));
 		}
 
 		// file size
@@ -105,7 +105,7 @@ WavMaker::MakeNewWavFromWavFile(const std::wstring& filename, bool overlook_erro
 
 		// WAVE header
 		if (reader.ReadInteger() != HQWav::WAVE_HEADER && NOT(overlook_error)) {
-			throw Bmx2WavInvalidWAVFile(filename, L"WAVE header");
+			throw Bmx2WavInvalidWAVFile(filename, _T("WAVE header"));
 		}
 
 		// fmt チャンクになるまで読み飛ばす
@@ -121,13 +121,14 @@ WavMaker::MakeNewWavFromWavFile(const std::wstring& filename, bool overlook_erro
 
 		// fmt id
 		if (reader.Read2Byte() != HQWav::FMT_ID) {
-			throw Bmx2WavInvalidWAVFile(filename, L"fmt id");
+			throw Bmx2WavInvalidWAVFile(filename, _T("fmt id"));
 		}
 
 		// channel count
 		int channel_count = reader.Read2Byte();
 		if (channel_count != 1 && channel_count != 2) {
-			throw Bmx2WavInvalidWAVFile(filename, L"Unsupported WAV File. channel count is " + to_wstring(channel_count));
+			throw Bmx2WavInvalidWAVFile(filename, _T("Unsupported WAV File. channel count is ") + to_string(channel_count)
+			);
 		}
 
 		// frequency
@@ -142,15 +143,16 @@ WavMaker::MakeNewWavFromWavFile(const std::wstring& filename, bool overlook_erro
 		// bit rate
 		int bit_rate = reader.Read2Byte();
 		if (bit_rate != 8 && bit_rate != 16 && bit_rate != 24) {
-			throw Bmx2WavInvalidWAVFile(filename, L"Unsupported WAV File. bit rate is " + to_wstring(bit_rate));
+			throw Bmx2WavInvalidWAVFile(filename, "Unsupported WAV File. bit rate is " + to_string(bit_rate)
+			);
 		}
 
 		// 細かいチェック
 		if (block_size != (bit_rate / 8) * channel_count && NOT(overlook_error)) {
-			throw Bmx2WavInvalidWAVFile(filename, L"block size, bit rate, and channel count");
+			throw Bmx2WavInvalidWAVFile(filename, _T("block size, bit rate, and channel count"));
 		}
 		if (byte_per_second != frequency * block_size && NOT(overlook_error)) {
-			throw Bmx2WavInvalidWAVFile(filename, L"byte per second, frequency, and block size");
+			throw Bmx2WavInvalidWAVFile(filename, _T("byte per second, frequency, and block size"));
 		}
 
 		// 拡張部分の対応
@@ -172,7 +174,7 @@ WavMaker::MakeNewWavFromWavFile(const std::wstring& filename, bool overlook_erro
 		// data size のチェック
 		if (data_size % ((bit_rate / 8) * channel_count) != 0) {
 			if (NOT(overlook_error)) {
-				throw Bmx2WavInvalidWAVFile(filename, L"data size can not be divided by block size");
+				throw Bmx2WavInvalidWAVFile(filename, _T("data size can not be divided by block size"));
 			}
 			data_size -= data_size % ((bit_rate / 8) * channel_count);
 		}
@@ -185,34 +187,37 @@ WavMaker::MakeNewWavFromWavFile(const std::wstring& filename, bool overlook_erro
 		reader.Read(buffer);
 
 		{
+#define READTYPE(t1, t2)\
+	auto reader = WavDataReader<t1, t2>(buffer, frequency);\
+	this->ReadDataFromReader(wav, reader);
 			using namespace DataReader;
 			if (channel_count == 1 && bit_rate == 8) {
-				this->ReadDataFromReader(wav, WavDataReader<OneChannel, EightBitWav>(buffer, frequency));
+				READTYPE(OneChannel, EightBitWav);
 			}
 			else if (channel_count == 1 && bit_rate == 16) {
-				this->ReadDataFromReader(wav, WavDataReader<OneChannel, SixteenBitWav>(buffer, frequency));
+				READTYPE(OneChannel, SixteenBitWav);
 			}
 			else if (channel_count == 1 && bit_rate == 24) {
-				this->ReadDataFromReader(wav, WavDataReader<OneChannel, TwentyFourBitWav>(buffer, frequency));
+				READTYPE(OneChannel, TwentyFourBitWav);
 			}
 			else if (channel_count == 2 && bit_rate == 8) {
-				this->ReadDataFromReader(wav, WavDataReader<TwoChannel, EightBitWav>(buffer, frequency));
+				READTYPE(TwoChannel, EightBitWav);
 			}
 			else if (channel_count == 2 && bit_rate == 16) {
-				this->ReadDataFromReader(wav, WavDataReader<TwoChannel, SixteenBitWav>(buffer, frequency));
+				READTYPE(TwoChannel, SixteenBitWav);
 			}
 			else if (channel_count == 2 && bit_rate == 24) {
-				this->ReadDataFromReader(wav, WavDataReader<TwoChannel, TwentyFourBitWav>(buffer, frequency));
+				READTYPE(TwoChannel, TwentyFourBitWav);
 			}
 			else {
-				throw Bmx2WavInternalException(L"There\'s nothing matches channelcount & bitrate - THIS SHOULDnt BE OCCURED");
+				throw Bmx2WavInternalException(_T("There\'s nothing matches channelcount & bitrate - THIS SHOULDnt BE OCCURED"));
 			}
 		}
 		return wav;
 	}
 	catch (WavFileReader::ReadException) {
 		delete wav;
-		throw Bmx2WavInvalidWAVFile(filename, L"Cannot Read WAV File.");
+		throw Bmx2WavInvalidWAVFile(filename, _T("Cannot Read WAV File."));
 	}
 	catch (...) {
 		delete wav;
@@ -372,7 +377,7 @@ int
 DataReader::EightBitWav::ReadOneData(void)
 {
 	if (current_ + 1 > buffer_.GetSize()) {
-		throw Bmx2WavInternalException(L"Internal Error - Buffer Overflow.");
+		throw Bmx2WavInternalException(_T("Internal Error - Buffer Overflow."));
 	}
 	int tmp = static_cast<int>(buffer_.GetPtr()[current_]);
 	current_ += 1;
@@ -397,7 +402,7 @@ int
 DataReader::SixteenBitWav::ReadOneData(void)
 {
 	if (current_ + 2 > buffer_.GetSize()) {
-		throw Bmx2WavInternalException(L"Internal Error - Buffer Overflow.");
+		throw Bmx2WavInternalException(_T("Internal Error - Buffer Overflow."));
 	}
 	char tmp[2];
 	tmp[0] = buffer_.GetPtr()[current_];
@@ -424,7 +429,7 @@ int
 DataReader::TwentyFourBitWav::ReadOneData(void)
 {
 	if (current_ + 3 > buffer_.GetSize()) {
-		throw Bmx2WavInternalException(L"Internal Error - Buffer Overflow.");
+		throw Bmx2WavInternalException(_T("Internal Error - Buffer Overflow."));
 	}
 	char tmp[4];
 	tmp[0] = buffer_.GetPtr()[current_];

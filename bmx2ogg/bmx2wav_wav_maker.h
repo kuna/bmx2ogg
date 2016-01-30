@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 
+#include "bmx2wav_common.h"
 #include "bmx2wav_wav.h"
 #include "bmx2wav_buffer.h"
 
@@ -10,7 +11,7 @@ namespace Bmx2Wav {
 	// -- WavFileReader ----------------------------------------------------
 	class WavFileReader {
 	public:
-		explicit WavFileReader(const std::wstring& filename);
+		explicit WavFileReader(const std::string& filename);
 		virtual ~WavFileReader();
 
 		class ReadException {};
@@ -22,7 +23,7 @@ namespace Bmx2Wav {
 		void Skip(unsigned int offset);
 
 	private:
-		const std::wstring filename_;
+		const std::string filename_;
 		FILE* file_;
 	};
 
@@ -40,8 +41,8 @@ namespace Bmx2Wav {
 		WavMaker(bool not_use_filter = false);
 
 		HQWav* MakeNewWav(void);
-		HQWav* MakeNewWavFromWavFile(const std::wstring& filename, bool overlook_error);
-		HQWav* MakeNewWavFromOggFile(const std::wstring& filename);
+		HQWav* MakeNewWavFromWavFile(const std::string& filename, bool overlook_error);
+		HQWav* MakeNewWavFromOggFile(const std::string& filename);
 
 	private:
 		void ReadDataFromReader(HQWav* wav, DataReader::Base& reader);
@@ -133,7 +134,7 @@ namespace Bmx2Wav {
 		template <class CHANNEL_READER, class BIT_READER>
 		class WavDataReader : public CHANNEL_READER, public BIT_READER {
 		public:
-			explicit WavDataReader(DynamicBuffer<unsigned char>& buffer, int frequency) :
+			WavDataReader(DynamicBuffer<unsigned char>& buffer, int frequency) :
 				DataReader::Base(frequency),
 				CHANNEL_READER(frequency),
 				BIT_READER(buffer, frequency) {}

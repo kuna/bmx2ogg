@@ -1,4 +1,5 @@
 #include "bmx2wav_wav.h"
+#include "bmx2wav_common.h"
 
 // load & save Ogg file
 namespace Bmx2Wav {
@@ -6,8 +7,8 @@ namespace Bmx2Wav {
 	private:
 		// raw data & some metadatas ...
 		HQWav *wav;
-		std::wstring title;
-		std::wstring artist;
+		std::string title;
+		std::string artist;
 	public:
 		HQOgg();
 		HQOgg(HQWav *wav);
@@ -15,8 +16,8 @@ namespace Bmx2Wav {
 
 		HQWav* GetPtr();
 		void SetPtr(HQWav* wav);
-		void SetMetadata(const std::wstring& title, const std::wstring& artist);
+		void SetMetadata(const std::string& title, const std::string& artist);
 		void Release();
-		void WriteToFile(const std::wstring& path);
+		void WriteToFile(const std::string& path);
 	};
 }

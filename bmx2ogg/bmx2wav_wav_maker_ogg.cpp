@@ -17,9 +17,9 @@ using namespace Bmx2Wav;
 namespace {
 	class FileHolder{
 	public:
-		explicit FileHolder(const std::wstring& filename) :
+		explicit FileHolder(const std::string& filename) :
 			filename_(filename),
-			file_(_wfopen(filename.c_str(), L"rb")) {
+			file_(IO::openfile(filename.c_str(), "rb")) {
 			if (file_ == NULL) {
 				throw Bmx2WavInvalidFile(filename, errno);
 			}
@@ -31,7 +31,7 @@ namespace {
 			}
 		}
 
-		const std::wstring& GetFileName(void) {
+		const std::string& GetFileName(void) {
 			return filename_;
 		}
 
@@ -40,7 +40,7 @@ namespace {
 		}
 
 	private:
-		std::wstring filename_;
+		std::string filename_;
 		FILE*       file_;
 	};
 
@@ -120,7 +120,7 @@ DataReader::SixteenBitOgg::ReadOneData(void)
 {
 	char tmp[2];
 	if (current_ >= last_read_size_) {
-		throw Bmx2WavInternalException(L"Internal Exception Occured");
+		throw Bmx2WavInternalException("Internal Exception Occured");
 	}
 	if (current_ + 1 != last_read_size_) {
 		tmp[0] = buffer_.GetPtr()[current_];
@@ -131,7 +131,7 @@ DataReader::SixteenBitOgg::ReadOneData(void)
 		tmp[0] = buffer_.GetPtr()[current_];
 		this->PreRead();
 		if (NOT(this->DataRemains())) {
-			throw Bmx2WavInvalidWAVFile(ogg_vorbis_file_holder_.GetFileHolder().GetFileName(), L"File Read Error");
+			throw Bmx2WavInvalidWAVFile(ogg_vorbis_file_holder_.GetFileHolder().GetFileName(), "File Read Error");
 		}
 		tmp[1] = buffer_.GetPtr()[current_];
 		current_ += 1;
@@ -161,7 +161,7 @@ DataReader::SixteenBitOgg::PreRead(void)
 
 
 HQWav*
-WavMaker::MakeNewWavFromOggFile(const std::wstring& filename)
+WavMaker::MakeNewWavFromOggFile(const std::string& filename)
 {
 	FileHolder file_holder(filename);
 
@@ -181,14 +181,17 @@ WavMaker::MakeNewWavFromOggFile(const std::wstring& filename)
 
 	try {
 		using namespace DataReader;
+#define READTYPE(t1, t2)\
+	auto reader = OggDataReader<t1, t2>(ogg_vorbis_file_holder, vorbis_info->rate);\
+	this->ReadDataFromReader(wav, reader);
 		if (vorbis_info->channels == 1) {
-			this->ReadDataFromReader(wav, OggDataReader<OneChannel, SixteenBitOgg>(ogg_vorbis_file_holder, vorbis_info->rate));
+			READTYPE(OneChannel, SixteenBitOgg);
 		}
 		else if (vorbis_info->channels == 2) {
-			this->ReadDataFromReader(wav, OggDataReader<TwoChannel, SixteenBitOgg>(ogg_vorbis_file_holder, vorbis_info->rate));
+			READTYPE(TwoChannel, SixteenBitOgg);
 		}
 		else {
-			throw Bmx2WavInternalException(L"Internal Error - Unknown Channel (ogg file)");
+			throw Bmx2WavInternalException("Internal Error - Unknown Channel (ogg file)");
 		}
 		return wav;
 	}
