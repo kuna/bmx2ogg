@@ -122,7 +122,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	// should we have to change filename?
 	if (BMX2WAVParameter::autofilename) {
 		wchar_t newname_[1024];
-		swprintf_s(newname_, L"[%ls] %ls", artist_, title_);
+		swprintf_s(newname_, L"[%ls] %ls", artist_.c_str(), title_.c_str());
 		BMX2WAVParameter::output_path = IO::substitute_filename(BMX2WAVParameter::output_path, newname_);
 	}
 	// replace invalid char
@@ -135,8 +135,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	// print brief information
 	wprintf(L"BMS Path: %ls\n", BMX2WAVParameter::bms_path.c_str());
-	wprintf(L"BMS Title: %ls\n", title_);
-	wprintf(L"BMS Artist: %ls\n", artist_);
+	wprintf(L"BMS Title: %ls\n", title_.c_str());
+	wprintf(L"BMS Artist: %ls\n", artist_.c_str());
 	wprintf(L"BMS Length: %.03lf (sec)\n", bms.GetEndTime());
 	wprintf(L"Output Path: %ls\n", BMX2WAVParameter::output_path.c_str());
 
