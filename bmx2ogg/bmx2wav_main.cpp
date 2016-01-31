@@ -148,10 +148,11 @@ int main(int argc, char** argv)
 	if (BMX2WAVParameter::autofilename) {
 		char newname_[1024];
 		sprintf_s(newname_, "[%s] %s", artist_.c_str(), title_.c_str());
-		BMX2WAVParameter::output_path = IO::substitute_filename(BMX2WAVParameter::output_path, newname_);
+		BMX2WAVParameter::output_path = IO::substitute_filename(
+			BMX2WAVParameter::output_path, 
+			IO::make_filename_safe(newname_)
+		);
 	}
-	// replace invalid char
-	BMX2WAVParameter::output_path = IO::make_filename_safe(BMX2WAVParameter::output_path);
 	// check overwrite file exists
 	if (!BMX2WAVParameter::overwrite && IO::is_file_exists(BMX2WAVParameter::output_path)) {
 		printf("output file already exists!");

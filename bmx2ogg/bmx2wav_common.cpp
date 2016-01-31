@@ -95,7 +95,7 @@ namespace IO {
 	}
 
 	std::wstring make_filename_safe(const std::wstring& filepath) {
-		std::wstring fn = get_filename(filepath);
+		std::wstring fn = filepath;
 #define REPLACESTR(s, o, r) (std::replace((s).begin(), (s).end(), (o), (r)))
 		REPLACESTR(fn, L'/', L'_');
 #ifdef _WIN32
@@ -209,7 +209,7 @@ namespace IO {
 	}
 
 	std::string make_filename_safe(const std::string& filepath) {
-		std::string fn = get_filename(filepath);
+		std::string fn = filepath;
 #define REPLACESTR(s, o, r) (std::replace((s).begin(), (s).end(), (o), (r)))
 		REPLACESTR(fn, '/', '_');
 #ifdef _WIN32
