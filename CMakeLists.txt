@@ -17,7 +17,7 @@ add_executable(bmx2ogg
 # link: libogg/libvorbis, li
 #
 
-find_library(bmsbel NAMES bmsbel PATHS "../bmsbelplus/build")
+find_library(bmsbel NAMES bmsbel PATHS "../bmsbelplus/build" "bmsbelplus/build")
 target_link_libraries(bmx2ogg
 	"vorbisfile"
 	"vorbisenc"

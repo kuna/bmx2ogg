@@ -26,6 +26,7 @@ typedef long long int __int64;
 #define vsprintf_s(buf, fmt, vl)            vsprintf(buf, fmt, vl)
 #define strcpy_s(dst, size, src)            strcpy(dst, src)
 #define scanf_s(fmt, size, ...)             scanf(fmt, ##__VA_ARGS__)
+#define sprintf_s(buf, fmt, ...)            sprintf(buf, fmt, ##__VA_ARGS__)
 #define memmove_s(dst, size, src, count)    memmove(dst, src, count)
 #define gets_s(buf, size)                   gets(buf)
 #define fopen_s(pFile,filename,mode)        ((*(pFile))=fopen((filename),(mode)))==NULL

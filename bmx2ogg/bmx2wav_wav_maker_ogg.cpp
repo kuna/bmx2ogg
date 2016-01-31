@@ -17,7 +17,7 @@ using namespace Bmx2Wav;
 namespace {
 	class FileHolder{
 	public:
-		explicit FileHolder(const std::string& filename) :
+		FileHolder(const std::string& filename) :
 			filename_(filename),
 			file_(IO::openfile(filename.c_str(), "rb")) {
 			if (file_ == NULL) {
@@ -26,8 +26,13 @@ namespace {
 		}
 
 		~FileHolder() {
+			Close();
+		}
+
+		void Close(bool closed = false) {
 			if (file_ != NULL) {
-				fclose(file_);
+				if (!closed) fclose(file_);
+				file_ = 0;
 			}
 		}
 
@@ -46,14 +51,18 @@ namespace {
 
 	class OggVorbisFileHolder{
 	public:
-		explicit OggVorbisFileHolder(FileHolder& file_holder) :
-			file_holder_(file_holder) {
-			if (ov_open(file_holder.GetPtr(), &vf_, NULL, 0) < 0) {
+		// ov_clear closes file handle,
+		// and that makes FileHolder destruction in trouble.
+		// So, make another fileholder object.
+		OggVorbisFileHolder(FileHolder& file_holder) :
+			file_holder_(file_holder.GetFileName()) {
+			if (ov_open(file_holder_.GetPtr(), &vf_, NULL, 0) < 0) {
 				throw Bmx2WavCannotReadFile(file_holder.GetFileName());
 			}
 		}
 
 		~OggVorbisFileHolder() {
+			file_holder_.Close(true);
 			ov_clear(&vf_);
 		}
 
@@ -66,7 +75,7 @@ namespace {
 		}
 
 	private:
-		FileHolder& file_holder_;
+		FileHolder file_holder_;
 		OggVorbis_File vf_;
 	};
 }

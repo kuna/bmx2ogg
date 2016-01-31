@@ -106,7 +106,7 @@ namespace IO {
 			REPLACESTR(fn, L'<', L'_');
 			REPLACESTR(fn, L'>', L'_');
 #endif
-		return get_filedir(filepath) + L"\\" + fn;
+		return fn;
 	}
 #endif
 	std::string substitute_extension(const std::string& filepath, const std::string& newext) {
@@ -211,6 +211,7 @@ namespace IO {
 	std::string make_filename_safe(const std::string& filepath) {
 		std::string fn = filepath;
 #define REPLACESTR(s, o, r) (std::replace((s).begin(), (s).end(), (o), (r)))
+//		for (int i=0; i<(s).length(); i++) if ((s)[i] == o) (s)[i] = r;)
 		REPLACESTR(fn, '/', '_');
 #ifdef _WIN32
 		REPLACESTR(fn, '|', '_');
@@ -220,7 +221,7 @@ namespace IO {
 		REPLACESTR(fn, '<', '_');
 		REPLACESTR(fn, '>', '_');
 #endif
-		return get_filedir(filepath) + "/" + fn;
+		return fn;
 	}
 
 	FILE* openfile(const char* filepath, const char* mode) {
