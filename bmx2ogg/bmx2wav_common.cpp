@@ -28,7 +28,7 @@ namespace IO {
 		auto i_end = filepath.find_last_of(L'.');
 		if (i_end == std::wstring::npos)
 			i_end = filepath.size() - 1;
-		return filepath.substr(0, i_start) + PATH_SEPARATOR + newname + filepath.substr(i_end);
+		return filepath.substr(0, i_start) + L"\\" + newname + filepath.substr(i_end);
 	}
 
 	std::wstring get_filedir(const std::wstring& filename) {
@@ -106,7 +106,7 @@ namespace IO {
 			REPLACESTR(fn, L'<', L'_');
 			REPLACESTR(fn, L'>', L'_');
 #endif
-		return get_filedir(filepath) + PATH_SEPARATOR + fn;
+		return get_filedir(filepath) + L"\\" + fn;
 	}
 #endif
 	std::string substitute_extension(const std::string& filepath, const std::string& newext) {
@@ -138,7 +138,7 @@ namespace IO {
 	}
 
 	bool is_file_exists(const std::string& filename) {
-		FILE *f = fopen(filename.c_str(), "r");
+		FILE *f = openfile(filename.c_str(), "r");
 		if (!f)
 			return false;
 		fclose(f);
@@ -146,8 +146,15 @@ namespace IO {
 	}
 
 	bool is_directory_exists(const std::string& dirpath) {
+#ifdef _WIN32
+		wchar_t buf[1024];
+		ENCODING::utf8_to_wchar(dirpath.c_str(), buf, 1024);
+		struct _stati64 s;
+		if (_wstat64(buf, &s) == 0) {
+#else
 		struct stat s;
 		if (stat(dirpath.c_str(), &s) == 0) {
+#endif
 			if (s.st_mode & S_IFDIR)
 				return true;
 			else
@@ -167,7 +174,9 @@ namespace IO {
 
 	bool create_directory(const std::string& filepath) {
 #ifdef _WIN32
-		return (mkdir(filepath.c_str()) == 0);
+		wchar_t buf[1024];
+		ENCODING::utf8_to_wchar(filepath.c_str(), buf, 1024);
+		return (_wmkdir(buf) == 0);
 #else
 		// WARNING buffer overflow attack
 		char buf[1024];
@@ -227,7 +236,9 @@ namespace IO {
 
 #ifdef _WIN32
 	FILE* openfile(const wchar_t* filepath, const wchar_t* mode) {
-		return _wfopen(filepath, mode);
+		FILE *f = 0;
+		_wfopen_s(&f, filepath, mode);
+		return f;
 	}
 #endif
 }

@@ -54,23 +54,6 @@ namespace BMX2WAVParameter {
 			);
 	}
 
-#ifdef _WIN32
-	int parse(int argc, _TCHAR* argv[]) {
-		// convert all arguments to utf8
-		char** args = new char[argc];
-		for (int i = 0; i < argc; i++) {
-			args[i] = new char[1024];
-			ENCODING::wchar_to_utf8(argv[i], args[i], 1024);
-		}
-		int r = parse(argc, args);
-		for (int i = 0; i < argc; i++) {
-			delete args[i];
-		}
-		delete args;
-		return r;
-	}
-#else
-
 	int parse(int argc, char** argv) {
 		if (argc <= 1 || CMP(argv[1], "-?") || CMP(argv[1], "-h")) {
 			return -1;
@@ -118,6 +101,22 @@ namespace BMX2WAVParameter {
 
 		return 0;
 	}
+
+#ifdef _WIN32
+	int parse(int argc, _TCHAR* argv[]) {
+		// convert all arguments to utf8
+		char** args = new char*[argc];
+		for (int i = 0; i < argc; i++) {
+			args[i] = new char[1024];
+			ENCODING::wchar_to_utf8(argv[i], args[i], 1024);
+		}
+		int r = parse(argc, args);
+		for (int i = 0; i < argc; i++) {
+			delete args[i];
+		}
+		delete args;
+		return r;
+	}
 #endif
 }
 
@@ -148,7 +147,7 @@ int main(int argc, char** argv)
 	// should we have to change filename?
 	if (BMX2WAVParameter::autofilename) {
 		char newname_[1024];
-		sprintf(newname_, "[%s] %s", artist_.c_str(), title_.c_str());
+		sprintf_s(newname_, "[%s] %s", artist_.c_str(), title_.c_str());
 		BMX2WAVParameter::output_path = IO::substitute_filename(BMX2WAVParameter::output_path, newname_);
 	}
 	// replace invalid char
@@ -160,11 +159,11 @@ int main(int argc, char** argv)
 	}
 
 	// print brief information
-	printf("BMS Path: %ls\n", BMX2WAVParameter::bms_path.c_str());
-	printf("BMS Title: %ls\n", title_.c_str());
-	printf("BMS Artist: %ls\n", artist_.c_str());
+	printf("BMS Path: %s\n", BMX2WAVParameter::bms_path.c_str());
+	printf("BMS Title: %s\n", title_.c_str());
+	printf("BMS Artist: %s\n", artist_.c_str());
 	printf("BMS Length: %.03lf (sec)\n", bms.GetEndTime());
-	printf("Output Path: %ls\n", BMX2WAVParameter::output_path.c_str());
+	printf("Output Path: %s\n", BMX2WAVParameter::output_path.c_str());
 
 	// load audio data
 	printf("Loading Audio Data ...\n");

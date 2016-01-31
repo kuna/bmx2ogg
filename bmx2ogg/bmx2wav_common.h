@@ -72,5 +72,6 @@ namespace IO {
 }
 
 namespace ENCODING {
+	bool utf8_to_wchar(const char *org, wchar_t *out, int maxlen);
 	bool wchar_to_utf8(const wchar_t *org, char *out, int maxlen);
 }

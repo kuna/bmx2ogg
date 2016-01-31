@@ -95,7 +95,6 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="bms_resource.cpp" />
     <ClCompile Include="bmx2wav_buffer.cpp" />
     <ClCompile Include="bmx2wav_common.cpp" />
     <ClCompile Include="bmx2wav_main.cpp" />
