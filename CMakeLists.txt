@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8)
 project(bmx2ogg)
-include_directories("include" "../bmsbelplus/include")
+include_directories(
+	"include"
+	"../bmsbelplus/include"
+	"bmsbelplus/include"
+)
 add_definitions(-std=c++11)
 add_executable(bmx2ogg
 	"bmx2ogg/bmx2wav_main.cpp"

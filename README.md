@@ -1,5 +1,7 @@
 # Bmx2Ogg
 
+[![travis](https://travis-ci.org/kuna/bmx2ogg.svg)](https://travis-ci.org/kuna/bmx2ogg)
+
 ### abstract
 - convert *.bmx(bms, bml, bme, etc ...) to audio files(*.wav / ogg)
 - have dependency with ```libiconv```, ```libogg```, ```libvorbis```
