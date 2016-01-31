@@ -1,6 +1,7 @@
 # Bmx2Ogg
 
 [![travis](https://travis-ci.org/kuna/bmx2ogg.svg)](https://travis-ci.org/kuna/bmx2ogg)
+[![Build status](https://ci.appveyor.com/api/projects/status/j23imi9b8q66qc0w?svg=true)](https://ci.appveyor.com/project/kuna/bmx2ogg)
 
 ### abstract
 - convert *.bmx(bms, bml, bme, etc ...) to audio files(*.wav / ogg)
