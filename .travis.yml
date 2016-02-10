@@ -1,10 +1,7 @@
 language: cpp
 compiler: clang++
 before_script:
-  - git clone https://github.com/kuna/bmsbelplus
-  - cd bmsbelplus
-  - ./cmake.sh
-  - cd ..
+  - git submodule update --init --recursive
   - mkdir build
   - cd build
   - cmake ..

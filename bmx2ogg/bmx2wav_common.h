@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string>
 
+#define USING_STATIC_LIBICONV	1
+
 // TODO: obsolete. should remove this.
 #ifdef _WIN32
 #define PATH_SEPARATOR		"\\"
