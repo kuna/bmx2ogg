@@ -21,7 +21,7 @@ add_executable(bmx2ogg
 # link: libogg/libvorbis, libiconv
 #
 
-#find_library(bmsbel NAMES bmsbel PATHS "bmsbelplus/build")
+find_library(iconv NAMES iconv PATHS "bmsbelplus/libiconv")
 target_link_libraries(bmx2ogg
 	vorbisfile
 	vorbisenc
