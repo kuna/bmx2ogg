@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="bmx2wav_buffer.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="bmx2wav_common.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="bmx2wav_main.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="bmx2wav_ogg.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="bmx2wav_wav.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="bmx2wav_wav_maker.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="bmx2wav_wav_maker_ogg.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="exception.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="bmx2wav_buffer.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
+    <ClInclude Include="bmx2wav_common.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
+    <ClInclude Include="bmx2wav_ogg.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
+    <ClInclude Include="bmx2wav_wav.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
+    <ClInclude Include="bmx2wav_wav_maker.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
+    <ClInclude Include="exception.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
+    <ClInclude Include="bms_resource.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Sources">
+      <UniqueIdentifier>{7534f922-a19b-44d5-b768-d58d04ce14db}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\lib\Release\libiconv.lib" />
+    <Library Include="..\lib\Release\bmsbel.lib" />
+    <Library Include="..\lib\Release\libvorbis.lib" />
+    <Library Include="..\lib\Release\libogg.lib" />
+  </ItemGroup>
+</Project>

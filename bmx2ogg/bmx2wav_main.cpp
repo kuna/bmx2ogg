@@ -168,7 +168,7 @@ int main(int argc, char** argv)
 
 	// load audio data
 	printf("Loading Audio Data ...\n");
-	WavMaker wav_maker(true);	// true: use low-pass filter
+	WavMaker wav_maker(false);	// true: use low-pass filter
 	BmsWavResource<HQWav> wav_table;
 	std::vector<unsigned int> last_used_wav_pos(BmsConst::WORD_MAX_COUNT, 0);
 	for (unsigned int i = 0; i < BmsConst::WORD_MAX_COUNT; ++i) {

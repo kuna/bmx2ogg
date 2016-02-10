@@ -295,6 +295,28 @@ WavMaker::ReadDataFromReader(HQWav* wav, DataReader::Base& reader)
 
 				// 他周波数 読み込み
 	default: {
+		double mul_freq = (double)HQWav::FREQUENCY / frequency;
+		HQWav::Tick prev_, cur_;
+		int audio_sample_pos = 0;
+		prev_ = reader.ReadTick();
+		for (int i = 1; reader.DataRemains(); i++) {
+			cur_ = reader.ReadTick();
+			while ((i - 1) * mul_freq <= audio_sample_pos && audio_sample_pos <= i * mul_freq) {
+				double prev_mul = (i * mul_freq - audio_sample_pos) / mul_freq;
+				double next_mul = (audio_sample_pos - (i - 1) * mul_freq) / mul_freq;
+				filter.Input(HQWav::Tick(
+					prev_.left_ * prev_mul + cur_.left_ * next_mul,
+					prev_.right_ * prev_mul + cur_.right_ * next_mul
+					));
+				audio_sample_pos++;
+			}
+			prev_ = cur_;
+		}
+
+#if 0
+		//
+		// original code (by CHILD)
+		//
 		std::map<double, HQWav::Tick> origin;
 		double origin_tick_step = 1.0 / static_cast<double>(frequency);
 
@@ -332,6 +354,7 @@ WavMaker::ReadDataFromReader(HQWav* wav, DataReader::Base& reader)
 				continue;
 			}
 		}
+#endif
 		break;
 	}
 
