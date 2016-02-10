@@ -1,0 +1,3 @@
+[submodule "bmsbelplus"]
+	path = bmsbelplus
+	url = https://github.com/kuna/bmsbelplus
