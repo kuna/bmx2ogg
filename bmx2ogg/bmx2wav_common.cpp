@@ -213,6 +213,8 @@ namespace IO {
 #define REPLACESTR(s, o, r) (std::replace((s).begin(), (s).end(), (o), (r)))
 //		for (int i=0; i<(s).length(); i++) if ((s)[i] == o) (s)[i] = r;)
 		REPLACESTR(fn, '/', '_');
+		REPLACESTR(fn, '\'', '_');
+		REPLACESTR(fn, '\"', '_');
 #ifdef _WIN32
 		REPLACESTR(fn, '|', '_');
 		REPLACESTR(fn, '\\', '_');
