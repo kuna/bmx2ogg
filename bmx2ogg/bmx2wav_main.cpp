@@ -15,9 +15,7 @@
 #include <stdio.h>
 
 #include "bms_resource.h"
-#include "bmx2wav_wav_maker.h"
-#include "bmx2wav_ogg.h"
-using namespace Bmx2Wav;
+#include "audio.h"
 
 #define NOT(v) (!(v))
 #define CMP(a, b) (strcmp(a, b) == 0)
@@ -126,6 +124,10 @@ int _tmain(int argc, _TCHAR* argv[])
 int main(int argc, char** argv)
 #endif
 {
+	// 2 vars is enough
+	Audio audio_out;
+	Mixer mixer;
+
 	// parse argument
 	if (BMX2WAVParameter::parse(argc, argv) == -1) {
 		BMX2WAVParameter::help();
@@ -168,9 +170,6 @@ int main(int argc, char** argv)
 
 	// load audio data
 	printf("Loading Audio Data ...\n");
-	WavMaker wav_maker(false);	// true: use low-pass filter
-	BmsWavResource<HQWav> wav_table;
-	std::vector<unsigned int> last_used_wav_pos(BmsConst::WORD_MAX_COUNT, 0);
 	for (unsigned int i = 0; i < BmsConst::WORD_MAX_COUNT; ++i) {
 		BmsWord word(i);
 		if (bms.GetRegistArraySet()["WAV"].IsExists(word)) {
@@ -189,93 +188,88 @@ int main(int argc, char** argv)
 
 			if (NOT(path_exists) && NOT(ogg_path_exists)) {
 				printf("[Warning] Cannot find wav/ogg file(%s). ignore.\n", path.c_str());
-				wav_table.SetWAV(word.ToInteger(), wav_maker.MakeNewWav());	// Set Null Sound
 			}
 			else {
-				try {
-					if (ogg_path_exists) {
-						HQWav* tmp = wav_maker.MakeNewWavFromOggFile(ogg_path);
-						wav_table.SetWAV(word.ToInteger(), tmp);
-					}
-					else if (path_exists) {
-						HQWav* tmp = wav_maker.MakeNewWavFromWavFile(path, true);	// default: overlook error
-						wav_table.SetWAV(word.ToInteger(), tmp);
-					}
+				bool r = true;
+				if (ogg_path_exists) {
+					r = mixer.LoadFile(i, ogg_path);
 				}
-				catch (Bmx2WavInvalidWAVFile& e) {
+				else if (path_exists) {
+					r = mixer.LoadFile(i, path);
+				}
+				if (!r){
 					printf("Cannot parse wav/ogg file(%s) correctly. ignore.\n", path.c_str());
-					wav_table.SetWAV(word.ToInteger(), wav_maker.MakeNewWav());	// Set Null Sound
 				}
 			}
-
-			last_used_wav_pos[i] = -1 * static_cast<int>(wav_table.GetWAV(word.ToInteger())->GetLength());
 		}
 	}
 
 	// start mixing
 	printf("Start Mixing ...\n");
-	HQWav result;
-	double mixing_pos;
+	double mixing_sample;
 	std::set<barindex> barmap;
 	bms.GetChannelManager().GetObjectExistBar(barmap);
 	BmsNoteManager note;
 	bms.GetNoteData(note);
 	for (auto it = barmap.begin(); it != barmap.end(); ++it) {
 		barindex bar = *it;
-		mixing_pos = bms.GetTimeManager().GetTimeFromBar(bar) * HQWav::FREQUENCY;
-		for (BmsChannelManager::ConstIterator it = bms.GetChannelManager().Begin(); it != bms.GetChannelManager().End(); ++it) {
-			BmsChannel& current_channel = *it->second;
-			for (BmsChannel::ConstIterator it2 = current_channel.Begin(); it2 != current_channel.End(); it2++) {
-				BmsBuffer& current_buffer = **it2;
-				BmsWord current_word = current_buffer.Get(bar);
-				int wav_channel = current_word.ToInteger();
+		mixing_sample = bms.GetTimeManager().GetTimeFromBar(bar) * FREQUENCY;
+		while (mixer.Tick() < mixing_sample) {
+			for (BmsChannelManager::ConstIterator it = bms.GetChannelManager().Begin(); it != bms.GetChannelManager().End(); ++it) {
+				BmsChannel& current_channel = *it->second;
+				for (BmsChannel::ConstIterator it2 = current_channel.Begin(); it2 != current_channel.End(); it2++) {
+					BmsBuffer& current_buffer = **it2;
+					BmsWord current_word = current_buffer.Get(bar);
+					int wav_channel = current_word.ToInteger();
 
-				if (current_channel.IsShouldPlayWavChannel() && current_word != BmsWord::MIN) {
-					// check is Longnote channel & Longnote ending sound
-					// if it does, ignore it
-					if (current_channel.IsLongNoteChannel()
-						&& note[current_channel.GetChannelNumber()].Get(bar).type == BmsNote::NOTE_LNEND) {
-						continue;
+					// reached an object and it should be played!
+					if (current_channel.IsShouldPlayWavChannel() && current_word != BmsWord::MIN) {
+						// check is Longnote channel & Longnote ending sound
+						// if it does, ignore it
+						if (current_channel.IsLongNoteChannel()
+							&& note[current_channel.GetChannelNumber()].Get(bar).type == BmsNote::NOTE_LNEND) {
+							continue;
+						}
+						// Replay WAV (in case of it was playing)
+						mixer.Stop(wav_channel);
+						mixer.Start(wav_channel);
 					}
-					if (!wav_table.IsLoaded(wav_channel)) {
-						// ignore not loaded wav file
-						continue;
-					}
-					// turn off previous WAV if same one is playing
-					if (static_cast<unsigned int>(mixing_pos)-last_used_wav_pos[wav_channel]
-						< wav_table.GetWAV(wav_channel)->GetLength()) {
-						result.DeductAt(static_cast<int>(mixing_pos), *wav_table.GetWAV(wav_channel),
-							static_cast<int>(mixing_pos)-last_used_wav_pos[wav_channel]);
-					}
-					result.MixinAt(static_cast<int>(mixing_pos), *wav_table.GetWAV(wav_channel));
-					last_used_wav_pos[wav_channel] = static_cast<int>(mixing_pos);
 				}
 			}
+			// record sample to audio
+			audio_out.Add(mixer.Tick());
 		}
 	}
 
 	// normalize
+#if 0
+	// TODO
 	printf("Normalize ...\n");
 	double change_ratio;
 	result.AverageNormalize(&change_ratio);
+#endif
 
 	// write (setting tag)
 	printf("Writing file ...\n");
-	try {
+	{
+		// output format is automatically determined by extension
+		bool r = true;
+		r = audio_out.SaveFile(BMX2WAVParameter::output_path);	
+#if 0
 		if (BMX2WAVParameter::output_type == BMX2WAVParameter::OUTPUT_WAV) {
-			result.WriteToFile(BMX2WAVParameter::output_path);
+			r = audio_out.SaveFile(BMX2WAVParameter::output_path);
 		}
 		else if (BMX2WAVParameter::output_type == BMX2WAVParameter::OUTPUT_OGG) {
 			HQOgg ogg(&result);
 			ogg.SetMetadata(title_, artist_);
 			ogg.WriteToFile(BMX2WAVParameter::output_path);
 		}
-	}
-	catch (Bmx2WavInvalidFile& e) {
-		printf("[ERROR] Cannot write file to %s. Check other program is using the output file.\n", BMX2WAVParameter::output_path.c_str());
-		printf(e.Message().c_str());
-		printf("\n");
-		return -1;
+#endif
+
+		if (!r) {
+			printf("[ERROR] Cannot write file to %s. Check other program is using the output file.\n", BMX2WAVParameter::output_path.c_str());
+			return -1;
+		}
 	}
 
 	// finished!

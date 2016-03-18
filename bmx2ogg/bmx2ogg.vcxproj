@@ -86,30 +86,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="audio.h" />
     <ClInclude Include="bms_resource.h" />
-    <ClInclude Include="bmx2wav_buffer.h" />
     <ClInclude Include="bmx2wav_common.h" />
-    <ClInclude Include="bmx2wav_ogg.h" />
-    <ClInclude Include="bmx2wav_wav.h" />
-    <ClInclude Include="bmx2wav_wav_maker.h" />
     <ClInclude Include="exception.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="bmx2wav_buffer.cpp" />
+    <ClCompile Include="audio.cpp" />
     <ClCompile Include="bmx2wav_common.cpp" />
     <ClCompile Include="bmx2wav_main.cpp" />
-    <ClCompile Include="bmx2wav_ogg.cpp" />
-    <ClCompile Include="bmx2wav_wav.cpp" />
-    <ClCompile Include="bmx2wav_wav_maker.cpp" />
-    <ClCompile Include="bmx2wav_wav_maker_ogg.cpp" />
     <ClCompile Include="exception.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="..\lib\Release\bmsbel.lib" />
     <Library Include="..\lib\Release\libiconv.lib" />
-    <Library Include="..\lib\Release\libogg.lib" />
-    <Library Include="..\lib\Release\libvorbis.lib" />
+    <Library Include="..\lib\Release\libsndfile-1.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

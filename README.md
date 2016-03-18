@@ -6,7 +6,7 @@
 ### abstract
 - convert *.bmx(bms, bml, bme, etc ...) to audio files(*.wav / ogg)
 - have dependency with ```libiconv```, ```libogg```, ```libvorbis```
-- original code by CHILD (specially with ```bmsbel / bmx2wav_wav / bmx2wav_wav_maker``` modules)
+- original project by CHILD *(named after bmx2wav)*
 - cross-platform (win32 / linux)
 
 ### how to use
@@ -26,6 +26,11 @@
   overwrite output file *(default)*
 - ```-autofn, -noautofn```
   automatically reset file name (ex: ```[artist] title.ogg```) *(default)*
+
+### dependency
+- bmsbelplus
+- libiconv
+- libsndfile
 
 #### easy use
 - just drag & drop any ```*.bmx``` files to program and there'll be converted ogg file!
