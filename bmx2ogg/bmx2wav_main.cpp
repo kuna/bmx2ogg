@@ -26,7 +26,7 @@ namespace BMX2WAVParameter {
 	std::string output_path;
 	bool overwrite;
 	bool autofilename;
-	bool normalize = false;
+	bool normalize = true;
 	double quality = 0.95;
 
 	std::string substitute_output_extension(const std::string& filename) {
@@ -61,13 +61,17 @@ namespace BMX2WAVParameter {
 	}
 
 	int parse(int argc, char** argv) {
+		// default option may be set from extension
+		output_type = OUTPUT_OGG;
+		if (strstr(argv[0], "wav")) output_type = OUTPUT_WAV;
+		else if (strstr(argv[0], "flac")) output_type = OUTPUT_FLAC;
+
 		if (argc <= 1 || CMP(argv[1], "-?") || CMP(argv[1], "-h")) {
 			return -1;
 		}
 
 		// default
 		bms_path = argv[1];
-		output_type = OUTPUT_OGG;
 		output_path = substitute_output_extension(IO::get_filedir(argv[0]) + PATH_SEPARATOR + IO::get_filename(bms_path));
 		overwrite = true;
 		autofilename = true;
@@ -232,15 +236,12 @@ int main(int argc, char** argv)
 	bms.GetNoteData(note);
 	// prepare for recording
 	mixer.StartMixing();
-	audio_out.Create();
 	for (auto it = barmap.begin(); it != barmap.end(); ++it) {
 		barindex bar = *it;
 		mixing_sample = (int)(bms.GetTimeManager().GetTimeFromBar(bar) * FREQUENCY) * 2;
 
 		// record samples to audio
-		while (mixer.GetTick() < mixing_sample) {
-			audio_out.Add(mixer.Tick());
-		}
+		mixer.Mix(mixing_sample - mixer.GetTick());
 
 		// control mixer channel
 		for (BmsChannelManager::ConstIterator it = bms.GetChannelManager().Begin(); it != bms.GetChannelManager().End(); ++it) {
@@ -265,14 +266,13 @@ int main(int argc, char** argv)
 			}
 		}
 	}
+	// end music by mixing completely
+	mixer.MixUntilEnd();
 
-	// normalize
-#if 0
-	// TODO
-	printf("Normalize ...\n");
-	double change_ratio;
-	result.AverageNormalize(&change_ratio);
-#endif
+	// normalize if necessary
+	printf("Cut / Normalize ...\n");
+	audio_out.Create();
+	mixer.Flush(&audio_out, BMX2WAVParameter::normalize);
 
 	// write (setting tag)
 	audio_out.SetTitle(title_);

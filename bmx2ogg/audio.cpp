@@ -1,5 +1,6 @@
 #include "audio.h"
 #include "bmx2wav_common.h"
+#include <algorithm>
 
 
 
@@ -19,9 +20,9 @@ bool Audio::LoadFile(const std::string& path) {
 	}
 
 	sample = file.channels() * file.frames();
-	size = sample * sizeof(int);
-	buf = (int*)malloc(size);
-	file.read((int*)buf, sample);
+	size = sample * sizeof(Sample);
+	buf = (Sample*)malloc(size);
+	file.read(buf, sample);
 
 	return true;
 }
@@ -76,21 +77,25 @@ void Audio::Release() {
 	}
 }
 
-int Audio::Get(int pos) {
+Sample Audio::Get(int pos) {
 	if (!buf) return 0;
 	if (pos >= sample) return 0;
 	return buf[pos];
+}
+
+int Audio::SampleLength() {
+	return sample;
 }
 
 int Audio::Length() {
 	return sample * 1000 / FREQUENCY / 2;
 }
 
-void Audio::Add(int sample) {
+void Audio::Add(Sample sample) {
 	if (buf) {
 		if (pos >= size / sizeof(int)) {
 			size += CHUNKSIZE;
-			buf = (int*)realloc(buf, size);
+			buf = (Sample*)realloc(buf, size);
 		}
 		buf[pos++] = sample;
 		if (pos > this->sample) this->sample = pos;
@@ -99,14 +104,10 @@ void Audio::Add(int sample) {
 
 void Audio::Create(int size) {
 	Release();
-	buf = (int*)malloc(size);
+	buf = (Sample*)malloc(size);
 	this->size = size;
 	sample = 0;
 	pos = 0;
-}
-
-void Audio::Normalize() {
-	// TODO
 }
 
 
@@ -138,6 +139,7 @@ void Mixer::Stop(int c) {
 void Mixer::StartMixing() {
 	// initalize
 	tick = 0;
+	ratio = 1.0;
 	for (int i = 0; i < MIXERSIZE; i++) {
 		channel[i].mixing = false;
 		channel[i].tick = 0;
@@ -148,19 +150,62 @@ int Mixer::GetTick() {
 	return tick;
 }
 
-int Mixer::Tick() {
-	long long int r = 0;
-	for (int i = 0; i < MIXERSIZE; i++) {
-		if (channel[i].mixing) {
-			r += channel[i].audio.Get(tick - channel[i].tick);
+void Mixer::Mix(int t) {
+	for (int c = 0; c < t; c++) {
+		MSample r = 0;
+		for (int i = 0; i < MIXERSIZE; i++) {
+			if (channel[i].mixing) {
+				r += channel[i].audio.Get(tick - channel[i].tick);
+			}
 		}
+
+		// update tick and add
+		tick++;
+		samples.push_back(r);
+	}
+}
+
+void Mixer::MixUntilEnd() {
+	while (!IsAllAudioStopped()) {
+		// 2 channels
+		Mix(2);
+	}
+}
+
+bool Mixer::IsStopped(int c) {
+	if (channel[c].audio.SampleLength() <= tick - channel[c].tick)
+		channel[c].mixing = false;
+	return !channel[c].mixing;
+}
+
+int Mixer::Flush(Audio *out, bool normalize, double *r) {
+	int c = samples.size();
+	if (normalize) {
+		double ratio = 1.0;
+		for (int i = 0; i < c; i++) {
+			if (samples[i] > MSAMPLE_MAX) ratio = std::max(ratio, MSAMPLE_MAX / (double)samples[i]);
+			else if (samples[i] < MSAMPLE_MIN) ratio = std::max(ratio, MSAMPLE_MIN / (double)samples[i]);
+		}
+		for (int i = 0; i < c; i++) {
+			samples[i] *= ratio;
+		}
+		if (r) *r = ratio;
 	}
 
-	// need to cut it
-	if (r > INT_MAX) r = INT_MAX;
-	else if (r < INT_MIN) r = INT_MIN;
+	// cut and store samples to out
+	for (int i = 0; i < c; i++) {
+		if (samples[i] > MSAMPLE_MAX) samples[i] = MSAMPLE_MAX;
+		else if (samples[i] < MSAMPLE_MIN) samples[i] = MSAMPLE_MIN;
+		out->Add(samples[i]);
+	}
 
-	// update tick and return
-	tick++;
-	return r;
+	samples.clear();
+	return c;
+}
+
+bool Mixer::IsAllAudioStopped() {
+	for (int i = 0; i < MIXERSIZE; i++) {
+		if (!IsStopped(i)) return false;
+	}
+	return true;
 }

@@ -13,9 +13,27 @@ typedef wchar_t* LPCWSTR;
 #define MIXERSIZE 1296
 #define CHUNKSIZE 10240000	// 10mb
 
+
+/*
+ * INT PRECISION make more detailed encoding, but that needs more memory and time.
+ * use it at your own risk.
+ */
+//#define USE_INTPRECISION
+#ifdef USE_INTPRECISION
+typedef int Sample;
+typedef long long int MSample;
+#define MSAMPLE_MAX INT_MAX
+#define MSAMPLE_MIN INT_MIN
+#else
+typedef short Sample;
+typedef int MSample;
+#define MSAMPLE_MAX SHRT_MAX
+#define MSAMPLE_MIN SHRT_MIN
+#endif
+
 class Audio {
 private:
-	int* buf;
+	Sample* buf;
 	size_t sample;
 	double quality = 0.95;
 
@@ -36,19 +54,24 @@ public:
 	bool SaveFile(const std::string& path, int format = SF_FORMAT_WAV | SF_FORMAT_PCM_16);
 
 	int Length();		// in microsecond
-	int Get(int pos);
+	int SampleLength();
+	Sample Get(int pos);
 
 	void Create(int size = CHUNKSIZE);
-	void Normalize();
 	void Reset() { pos = 0; }
-	void Add(int sample);
+	void Add(Sample sample);
 	void SetQuality(double v) { quality = v; }
 	void SetTitle(const std::string& s) { title = s; };
 	void SetArtist(const std::string& s) { artist = s; };
+
+	// a little modification
+	void ChangeRate(double d);
+	void ChangePitch(double d);
 };
 
 
 
+#include <vector>
 
 class Mixer {
 private:
@@ -59,16 +82,25 @@ private:
 	};
 	Channel channel[MIXERSIZE];
 	int tick;			// current tick
+	bool IsStopped(int c);
+	double ratio;
+
+	// you may need this if you're going to normalize.
+	std::vector<MSample> samples;
 public:
 	Mixer() {};
 	~Mixer() { Release(); };
 	void Release();
 	bool LoadFile(int c, const std::string& path);
 	Audio* GetAudio(int c);
+	void SetRatio(double v) { ratio = v; }
 
 	void Start(int c);
 	void Stop(int c);
 	void StartMixing();
 	int GetTick();
-	int Tick();			// tick to next sample, and returns current sample
+	void Mix(int t = 1);			// tick to next sample, and returns current sample
+	void MixUntilEnd();				// mix until all audio stops playing
+	bool IsAllAudioStopped();
+	int Flush(Audio *out, bool normalized = false, double *ratio = 0);		// returns flushed samples
 };
