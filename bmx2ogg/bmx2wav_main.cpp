@@ -21,15 +21,20 @@
 #define CMP(a, b) (strcmp(a, b) == 0)
 
 namespace BMX2WAVParameter {
-	enum OUTPUT_TYPE { OUTPUT_OGG, OUTPUT_WAV } output_type;
+	enum OUTPUT_TYPE { OUTPUT_OGG, OUTPUT_WAV, OUTPUT_FLAC } output_type;
 	std::string bms_path;
 	std::string output_path;
 	bool overwrite;
 	bool autofilename;
+	bool normalize = false;
+	double quality = 0.95;
 
 	std::string substitute_output_extension(const std::string& filename) {
 		if (output_type == OUTPUT_OGG) {
 			return IO::substitute_extension(filename, ".ogg");
+		}
+		else if (output_type == OUTPUT_FLAC) {
+			return IO::substitute_extension(filename, ".flac");
 		}
 		else {
 			return IO::substitute_extension(filename, ".wav");
@@ -44,6 +49,9 @@ namespace BMX2WAVParameter {
 			"-o: output file to my custom path (you need to enter more argument)\n"
 			"-wav: output audio as wav\n"
 			"-ogg: output audio as ogg (default)\n"
+			"-flac: output audio as flac\n"
+			"-q: set VBR quality (0 ~ 1, default: 0.95)\n"
+			"-norm: normalize sound volume\n"
 			"-ow: overwrite output file (default)\n"
 			"-autofn, -noautofn: automatically reset file name (ex: [artist] title.ogg) (default)\n"
 			"\n"
@@ -91,6 +99,17 @@ namespace BMX2WAVParameter {
 			}
 			else if (CMP(argv[i], "-ogg")) {
 				// it's default, so do nothing
+			}
+			else if (CMP(argv[i], "-flac")) {
+				output_type = OUTPUT_FLAC;
+				output_path = substitute_output_extension(output_path);
+			}
+			else if (CMP(argv[i], "-q")) {
+				if (++i == argc) return -1;
+				quality = atof(argv[i]);
+			}
+			else if (CMP(argv[i], "-norm")) {
+				normalize = true;
 			}
 			else if (CMP(argv[i], "-noautofn")) {
 				autofilename = false;
@@ -211,33 +230,39 @@ int main(int argc, char** argv)
 	bms.GetChannelManager().GetObjectExistBar(barmap);
 	BmsNoteManager note;
 	bms.GetNoteData(note);
+	// prepare for recording
+	mixer.StartMixing();
+	audio_out.Create();
 	for (auto it = barmap.begin(); it != barmap.end(); ++it) {
 		barindex bar = *it;
-		mixing_sample = bms.GetTimeManager().GetTimeFromBar(bar) * FREQUENCY;
-		while (mixer.Tick() < mixing_sample) {
-			for (BmsChannelManager::ConstIterator it = bms.GetChannelManager().Begin(); it != bms.GetChannelManager().End(); ++it) {
-				BmsChannel& current_channel = *it->second;
-				for (BmsChannel::ConstIterator it2 = current_channel.Begin(); it2 != current_channel.End(); it2++) {
-					BmsBuffer& current_buffer = **it2;
-					BmsWord current_word = current_buffer.Get(bar);
-					int wav_channel = current_word.ToInteger();
+		mixing_sample = (int)(bms.GetTimeManager().GetTimeFromBar(bar) * FREQUENCY) * 2;
 
-					// reached an object and it should be played!
-					if (current_channel.IsShouldPlayWavChannel() && current_word != BmsWord::MIN) {
-						// check is Longnote channel & Longnote ending sound
-						// if it does, ignore it
-						if (current_channel.IsLongNoteChannel()
-							&& note[current_channel.GetChannelNumber()].Get(bar).type == BmsNote::NOTE_LNEND) {
-							continue;
-						}
-						// Replay WAV (in case of it was playing)
-						mixer.Stop(wav_channel);
-						mixer.Start(wav_channel);
+		// record samples to audio
+		while (mixer.GetTick() < mixing_sample) {
+			audio_out.Add(mixer.Tick());
+		}
+
+		// control mixer channel
+		for (BmsChannelManager::ConstIterator it = bms.GetChannelManager().Begin(); it != bms.GetChannelManager().End(); ++it) {
+			BmsChannel& current_channel = *it->second;
+			for (BmsChannel::ConstIterator it2 = current_channel.Begin(); it2 != current_channel.End(); it2++) {
+				BmsBuffer& current_buffer = **it2;
+				BmsWord current_word = current_buffer.Get(bar);
+				int wav_channel = current_word.ToInteger();
+
+				// reached an object and it should be played!
+				if (current_channel.IsShouldPlayWavChannel() && current_word != BmsWord::MIN) {
+					// check is Longnote channel & Longnote ending sound
+					// if it does, ignore it
+					if (current_channel.IsLongNoteChannel()
+						&& note[current_channel.GetChannelNumber()].Get(bar).type == BmsNote::NOTE_LNEND) {
+						continue;
 					}
+					// Replay WAV (in case of it was playing)
+					mixer.Stop(wav_channel);
+					mixer.Start(wav_channel);
 				}
 			}
-			// record sample to audio
-			audio_out.Add(mixer.Tick());
 		}
 	}
 
@@ -250,21 +275,23 @@ int main(int argc, char** argv)
 #endif
 
 	// write (setting tag)
+	audio_out.SetTitle(title_);
+	audio_out.SetArtist(artist_);
+	audio_out.SetQuality(BMX2WAVParameter::quality);
 	printf("Writing file ...\n");
 	{
 		// output format is automatically determined by extension
 		bool r = true;
-		r = audio_out.SaveFile(BMX2WAVParameter::output_path);	
-#if 0
+		int flag = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
 		if (BMX2WAVParameter::output_type == BMX2WAVParameter::OUTPUT_WAV) {
-			r = audio_out.SaveFile(BMX2WAVParameter::output_path);
 		}
 		else if (BMX2WAVParameter::output_type == BMX2WAVParameter::OUTPUT_OGG) {
-			HQOgg ogg(&result);
-			ogg.SetMetadata(title_, artist_);
-			ogg.WriteToFile(BMX2WAVParameter::output_path);
+			flag = SF_FORMAT_OGG | SF_FORMAT_VORBIS;
 		}
-#endif
+		else if (BMX2WAVParameter::output_type == BMX2WAVParameter::OUTPUT_FLAC) {
+			flag = SF_FORMAT_FLAC | SF_FORMAT_PCM_16;
+		}
+		r = audio_out.SaveFile(BMX2WAVParameter::output_path, flag);
 
 		if (!r) {
 			printf("[ERROR] Cannot write file to %s. Check other program is using the output file.\n", BMX2WAVParameter::output_path.c_str());

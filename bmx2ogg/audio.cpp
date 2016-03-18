@@ -1,12 +1,22 @@
 #include "audio.h"
+#include "bmx2wav_common.h"
+
+
 
 bool Audio::LoadFile(const std::string& path) {
 	Release();
-	// COMMENT: check unicode validation
-	SndfileHandle file(path.c_str(), 0, 0, 2, FREQUENCY);
+#ifdef _WIN32
+	wchar_t wpath[1024];
+	ENCODING::utf8_to_wchar(path.c_str(), wpath, 1024);
+	SndfileHandle file(wpath, SFM_READ, 0, 2, FREQUENCY);
+#else
+	SndfileHandle file(path.c_str(), SFM_READ, 0, 2, FREQUENCY);
+#endif
 
-	if (file.error() != 0)
+	if (file.error() != 0) {
+		printf("%s\n", sf_strerror(file.rawHandle()));
 		return false;
+	}
 
 	sample = file.channels() * file.frames();
 	size = sample * sizeof(int);
@@ -16,15 +26,44 @@ bool Audio::LoadFile(const std::string& path) {
 	return true;
 }
 
-bool Audio::SaveFile(const std::string& path) {
-	SndfileHandle file(path.c_str(), 0, 0, 2, FREQUENCY);
+#define SAMPLECHUNKSIZE 1024
+bool Audio::SaveFile(const std::string& path, int format) {
+#ifdef _WIN32
+	wchar_t wpath[1024];
+	ENCODING::utf8_to_wchar(path.c_str(), wpath, 1024);
+	SndfileHandle file(wpath, SFM_WRITE, format, 2, FREQUENCY);
+#else
+	SndfileHandle file(path.c_str(), SFM_WRITE, format, 2, FREQUENCY);
+#endif
 
 	if (!title.empty()) sf_set_string(file.rawHandle(), SF_STR_TITLE, title.c_str());
 	if (!artist.empty()) sf_set_string(file.rawHandle(), SF_STR_ARTIST, artist.c_str());
 
-	file.write(buf, sample);
+	// set quality
+	sf_command(file.rawHandle(), SFC_SET_VBR_ENCODING_QUALITY, &quality, sizeof(double));
+
+	// write file
+	// (cut into pieces)
+	for (int i = 0; i < sample;) {
+		size_t nchunk = sample - i;
+		if (nchunk > SAMPLECHUNKSIZE) nchunk = SAMPLECHUNKSIZE;
+		size_t r = file.write(buf + i, nchunk);
+		if (r != nchunk) {
+			printf("%s\n", sf_strerror(file.rawHandle()));
+			return false;
+		}
+		i += nchunk;
+	}
 
 	return true;
+}
+
+Audio::Audio()
+	: buf(0), sample(0), pos(0), size(0)
+{}
+
+Audio::~Audio() {
+	Release();
 }
 
 void Audio::Release() {
@@ -39,7 +78,7 @@ void Audio::Release() {
 
 int Audio::Get(int pos) {
 	if (!buf) return 0;
-	if (pos > sample) return 0;
+	if (pos >= sample) return 0;
 	return buf[pos];
 }
 
@@ -49,12 +88,21 @@ int Audio::Length() {
 
 void Audio::Add(int sample) {
 	if (buf) {
-		if (pos >= size) {
+		if (pos >= size / sizeof(int)) {
 			size += CHUNKSIZE;
 			buf = (int*)realloc(buf, size);
 		}
 		buf[pos++] = sample;
+		if (pos > this->sample) this->sample = pos;
 	}
+}
+
+void Audio::Create(int size) {
+	Release();
+	buf = (int*)malloc(size);
+	this->size = size;
+	sample = 0;
+	pos = 0;
 }
 
 void Audio::Normalize() {
@@ -101,14 +149,16 @@ int Mixer::GetTick() {
 }
 
 int Mixer::Tick() {
-	int r = 0;
+	long long int r = 0;
 	for (int i = 0; i < MIXERSIZE; i++) {
 		if (channel[i].mixing) {
 			r += channel[i].audio.Get(tick - channel[i].tick);
 		}
 	}
 
-	// TODO: do normalize ?
+	// need to cut it
+	if (r > INT_MAX) r = INT_MAX;
+	else if (r < INT_MIN) r = INT_MIN;
 
 	// update tick and return
 	tick++;

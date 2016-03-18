@@ -39,7 +39,9 @@ typedef long long int __int64;
 #endif // __STDC_WANT_SECURE_LIB__
 
 // it's unnecessary now but ... I'm too lazy to remove this
+#ifndef _T
 #define _T(x) x
+#endif
 
 std::string to_string(int i);
 
