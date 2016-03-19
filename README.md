@@ -44,4 +44,4 @@
 
 ### etc
 - ```Title/Artist/Genre``` metadata is automatically written if you encode as ogg/flac.
-- Download Executable file from [here](http://kuna.wo.tc/1425).
+- Download Executable file from [here](https://dl.dropboxusercontent.com/u/102712785/bmx2ogg/bmx2ogg.zip).
