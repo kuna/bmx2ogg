@@ -10,8 +10,9 @@ Debug
 Release
 
 # dev libs
-lib
 build
+lib/Debug
+lib/Release
 
 # temporary project
 rhythmusbmsparser
