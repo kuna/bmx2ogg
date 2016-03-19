@@ -4,7 +4,6 @@ project(bmx2ogg)
 
 
 # for iconv
-add_definitions(-DLIBICONV_PLUG)
 add_definitions(-std=c++11)
 add_subdirectory(bmsbelplus)
 add_executable(bmx2ogg
@@ -71,7 +70,12 @@ include_directories(
 
 target_link_libraries(bmx2ogg
 	${SNDFILE_LIBRARY}
-	${ICONV_LIB}
 	bmsbel
 )
+if (ICONV_LIB)
+target_link_libraries(bmx2ogg ${ICONV_LIB})
+else()
+add_definitions(-DLIBICONV_PLUG)
+endif()
+
 
