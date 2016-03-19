@@ -30,6 +30,9 @@ namespace BMX2WAVParameter {
 	double quality = 0.95;
 	bool tagging = true;
 
+	double pitchdelta = 0.0;
+	double rate = 1.0;
+
 	std::string substitute_output_extension(const std::string& filename) {
 		if (output_type == OUTPUT_OGG) {
 			return IO::substitute_extension(filename, ".ogg");
@@ -52,6 +55,8 @@ namespace BMX2WAVParameter {
 			"-ogg: output audio as ogg (default)\n"
 			"-flac: output audio as flac\n"
 			"-q: set VBR quality (0 ~ 1, default: 0.95)\n"
+			"-rate: set speed of music (Higher means faster)\n"
+			"-pitch: set pitch of music (1 : 1/12 octave)\n"
 			"-norm: normalize sound volume\n"
 			"-ow: overwrite output file (default)\n"
 			"-autofn, -noautofn: automatically reset file name (ex: [artist] title.ogg) (default)\n"
@@ -113,6 +118,14 @@ namespace BMX2WAVParameter {
 				if (++i == argc) return -1;
 				quality = atof(argv[i]);
 			}
+			else if (CMP(argv[i], "-pitch")) {
+				if (++i == argc) return -1;
+				pitchdelta = atof(argv[i]);
+			}
+			else if (CMP(argv[i], "-rate")) {
+				if (++i == argc) return -1;
+				rate = atof(argv[i]);
+			}
 			else if (CMP(argv[i], "-norm")) {
 				normalize = true;
 			}
@@ -168,8 +181,10 @@ int main(int argc, char** argv)
 	}
 	std::string artist_ = "(none)";
 	std::string title_ = "(none)";
+	std::string genre_ = "";
 	bms.GetHeaders().Query("ARTIST", artist_);
 	bms.GetHeaders().Query("TITLE", title_);
+	bms.GetHeaders().Query("GENRE", genre_);
 	// should we have to change filename?
 	if (BMX2WAVParameter::autofilename) {
 		char newname_[1024];
@@ -275,6 +290,15 @@ int main(int argc, char** argv)
 	audio_out.Create();
 	mixer.Flush(&audio_out, BMX2WAVParameter::normalize);
 
+	// pitch / rate if necessary
+	if (BMX2WAVParameter::pitchdelta != 0) {
+		printf("Sampling pitch shift ...\n");
+		audio_out.ChangePitch(BMX2WAVParameter::pitchdelta / 12.0);
+	}
+	if (BMX2WAVParameter::rate != 1.0) {
+		printf("Sampling rate ...\n");
+		audio_out.ChangeRate(BMX2WAVParameter::rate);
+	}
 
 	// write (setting tag)
 	char *albumart = 0;
@@ -282,6 +306,7 @@ int main(int argc, char** argv)
 	if (BMX2WAVParameter::tagging) {
 		audio_out.SetTitle(title_);
 		audio_out.SetArtist(artist_);
+		audio_out.SetGenre(genre_);
 		// STAGEFILE (album art)
 		if (bms.GetHeaders().IsExists("STAGEFILE")) {
 			std::string albumart_path = IO::get_filedir(BMX2WAVParameter::bms_path) +

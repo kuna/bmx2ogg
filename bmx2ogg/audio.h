@@ -11,7 +11,7 @@ typedef wchar_t* LPCWSTR;
 
 #define FREQUENCY 44100
 #define MIXERSIZE 1296
-#define CHUNKSIZE 10240000	// 10mb
+#define CHUNKSIZE 512000	// 0.5m samples
 
 
 /*
@@ -38,10 +38,11 @@ class AudioData {
 	int samplesize;
 	int pos;
 public:
-	AudioData<T>() { samples = 0;  Create(CHUNKSIZE); }
+	AudioData<T>() { Create(); }
 	~AudioData<T>() { Release(); }
 	void Release() {
-		if (samples) { free(samples); samples = 0; samplesize = 0; }
+		if (samples) { free(samples); }
+		samples = 0; samplesize = 0; pos = 0;
 	}
 	void Create(int size = CHUNKSIZE) {
 		Release();
@@ -58,22 +59,19 @@ public:
 	}
 	T* GetPtr() { return samples; }
 	int GetSampleCount() { return pos; }
+	void SetSampleCount(int v) { pos = v; }
 	T& operator[](int p) { return samples[p]; }
 };
 
 class Audio {
 private:
-	Sample* buf;
-	size_t sample;
-	double quality = 0.95;
-
-	// for recording (file related)
-	size_t size;
-	size_t pos;
+	AudioData<Sample> buf;
 
 	// tag
 	std::string title;
 	std::string artist;
+	std::string genre;
+	double quality = 0.95;
 	char* albumart;
 	size_t albumart_size;
 public:
@@ -90,15 +88,16 @@ public:
 	Sample Get(int pos);
 
 	void Create(int size = CHUNKSIZE);
-	void Reset() { pos = 0; }
 	void Add(Sample sample);
 	void SetQuality(double v) { quality = v; }
 	void SetTitle(const std::string& s) { title = s; };
 	void SetArtist(const std::string& s) { artist = s; };
+	void SetGenre(const std::string& s) { genre = s; }
 	void SetCoverArt(char *p, size_t s) { albumart = p; albumart_size = s; };
 
 	// a little modification
 	void ChangeRate(double d);
+	void ChangeLength(double d);
 	void ChangePitch(double d);
 };
 
@@ -116,6 +115,7 @@ private:
 	Channel channel[MIXERSIZE];
 	int tick;			// current tick
 	bool IsStopped(int c);
+	int RemainingTick(int c);
 	double ratio;
 
 	// you may need this if you're going to normalize.
@@ -137,3 +137,9 @@ public:
 	bool IsAllAudioStopped();
 	int Flush(Audio *out, bool normalized = false, double *ratio = 0);		// returns flushed samples
 };
+
+// pitch shifter
+namespace SoundUtil {
+	template <typename T>
+	void smbPitchShift(float pitchShift, long numSampsToProcess, long fftFrameSize, long osamp, float sampleRate, T *indata, T *outdata);
+}
