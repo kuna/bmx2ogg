@@ -39,6 +39,14 @@ bool Audio::SaveFile(const std::string& path, int format) {
 
 	if (!title.empty()) sf_set_string(file.rawHandle(), SF_STR_TITLE, title.c_str());
 	if (!artist.empty()) sf_set_string(file.rawHandle(), SF_STR_ARTIST, artist.c_str());
+	if (albumart) {
+		SF_CHUNK_INFO c;
+		strcpy_s(c.id, "COVERART");
+		c.id_size = strlen(c.id);
+		c.data = albumart;
+		c.datalen = albumart_size;
+		sf_set_chunk(file.rawHandle(), &c);
+	}
 
 	// set quality
 	sf_command(file.rawHandle(), SFC_SET_VBR_ENCODING_QUALITY, &quality, sizeof(double));
@@ -60,8 +68,10 @@ bool Audio::SaveFile(const std::string& path, int format) {
 }
 
 Audio::Audio()
-	: buf(0), sample(0), pos(0), size(0)
-{}
+	: buf(0)
+{
+	Release();
+}
 
 Audio::~Audio() {
 	Release();
@@ -70,11 +80,12 @@ Audio::~Audio() {
 void Audio::Release() {
 	if (buf) {
 		free(buf);
-		buf = 0;
-		sample = 0;
-		size = 0;
-		pos = 0;
 	}
+	buf = 0;
+	sample = 0;
+	size = 0;
+	pos = 0;
+	albumart = 0;
 }
 
 Sample Audio::Get(int pos) {
@@ -151,18 +162,18 @@ int Mixer::GetTick() {
 }
 
 void Mixer::Mix(int t) {
-	for (int c = 0; c < t; c++) {
-		MSample r = 0;
-		for (int i = 0; i < MIXERSIZE; i++) {
-			if (channel[i].mixing) {
-				r += channel[i].audio.Get(tick - channel[i].tick);
-			}
-		}
+	for (int c = 0; c < t; c++)
+		samples.Add(0);
 
-		// update tick and add
-		tick++;
-		samples.push_back(r);
+	for (int i = 0; i < MIXERSIZE; i++) if (channel[i].mixing) {
+		for (int c = 0; c < t; c++) {
+			int _t = tick + c;
+			samples[_t] =
+				samples[_t] + channel[i].audio.Get(_t - channel[i].tick);
+		}
 	}
+
+	tick += t;
 }
 
 void Mixer::MixUntilEnd() {
@@ -179,7 +190,7 @@ bool Mixer::IsStopped(int c) {
 }
 
 int Mixer::Flush(Audio *out, bool normalize, double *r) {
-	int c = samples.size();
+	int c = samples.GetSampleCount();
 	if (normalize) {
 		double ratio = 1.0;
 		for (int i = 0; i < c; i++) {
@@ -187,7 +198,7 @@ int Mixer::Flush(Audio *out, bool normalize, double *r) {
 			else if (samples[i] < MSAMPLE_MIN) ratio = std::max(ratio, MSAMPLE_MIN / (double)samples[i]);
 		}
 		for (int i = 0; i < c; i++) {
-			samples[i] *= ratio;
+			samples[i] = samples[i] * ratio;
 		}
 		if (r) *r = ratio;
 	}
@@ -199,7 +210,7 @@ int Mixer::Flush(Audio *out, bool normalize, double *r) {
 		out->Add(samples[i]);
 	}
 
-	samples.clear();
+	samples.Clear();
 	return c;
 }
 

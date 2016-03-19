@@ -99,9 +99,9 @@
     <ClCompile Include="exception.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <Library Include="..\lib\libiconv.lib" />
+    <Library Include="..\lib\libsndfile-1.lib" />
     <Library Include="..\lib\Release\bmsbel.lib" />
-    <Library Include="..\lib\Release\libiconv.lib" />
-    <Library Include="..\lib\Release\libsndfile-1.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

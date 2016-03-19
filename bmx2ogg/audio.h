@@ -31,6 +31,36 @@ typedef int MSample;
 #define MSAMPLE_MIN SHRT_MIN
 #endif
 
+
+template <typename T>
+class AudioData {
+	T* samples;
+	int samplesize;
+	int pos;
+public:
+	AudioData<T>() { samples = 0;  Create(CHUNKSIZE); }
+	~AudioData<T>() { Release(); }
+	void Release() {
+		if (samples) { free(samples); samples = 0; samplesize = 0; }
+	}
+	void Create(int size = CHUNKSIZE) {
+		Release();
+		samplesize = size;
+		samples = (T*)malloc(sizeof(T) * size);
+	}
+	void Clear() { Release(); Create(); }
+	void Add(T v) {
+		if (pos >= samplesize) {
+			samplesize += CHUNKSIZE;
+			samples = (T*)realloc(samples, sizeof(T) * samplesize);
+		}
+		samples[pos++] = v;
+	}
+	T* GetPtr() { return samples; }
+	int GetSampleCount() { return pos; }
+	T& operator[](int p) { return samples[p]; }
+};
+
 class Audio {
 private:
 	Sample* buf;
@@ -44,6 +74,8 @@ private:
 	// tag
 	std::string title;
 	std::string artist;
+	char* albumart;
+	size_t albumart_size;
 public:
 	Audio();
 	~Audio();
@@ -63,6 +95,7 @@ public:
 	void SetQuality(double v) { quality = v; }
 	void SetTitle(const std::string& s) { title = s; };
 	void SetArtist(const std::string& s) { artist = s; };
+	void SetCoverArt(char *p, size_t s) { albumart = p; albumart_size = s; };
 
 	// a little modification
 	void ChangeRate(double d);
@@ -86,7 +119,7 @@ private:
 	double ratio;
 
 	// you may need this if you're going to normalize.
-	std::vector<MSample> samples;
+	AudioData<MSample> samples;
 public:
 	Mixer() {};
 	~Mixer() { Release(); };

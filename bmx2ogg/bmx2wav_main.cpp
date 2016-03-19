@@ -28,6 +28,7 @@ namespace BMX2WAVParameter {
 	bool autofilename;
 	bool normalize = true;
 	double quality = 0.95;
+	bool tagging = true;
 
 	std::string substitute_output_extension(const std::string& filename) {
 		if (output_type == OUTPUT_OGG) {
@@ -274,10 +275,33 @@ int main(int argc, char** argv)
 	audio_out.Create();
 	mixer.Flush(&audio_out, BMX2WAVParameter::normalize);
 
+
 	// write (setting tag)
-	audio_out.SetTitle(title_);
-	audio_out.SetArtist(artist_);
-	audio_out.SetQuality(BMX2WAVParameter::quality);
+	char *albumart = 0;
+	size_t albumart_size = 0;
+	if (BMX2WAVParameter::tagging) {
+		audio_out.SetTitle(title_);
+		audio_out.SetArtist(artist_);
+		// STAGEFILE (album art)
+		if (bms.GetHeaders().IsExists("STAGEFILE")) {
+			std::string albumart_path = IO::get_filedir(BMX2WAVParameter::bms_path) +
+				PATH_SEPARATOR +
+				bms.GetHeaders()["STAGEFILE"].c_str();
+			FILE *f;
+			if (f = IO::openfile(albumart_path.c_str(), "rb")) {
+				fseek(f, 0, SEEK_END);
+				albumart_size = ftell(f);
+				fseek(f, 0, SEEK_SET);
+				albumart = (char*)malloc(albumart_size);
+				fread(albumart, 1, albumart_size, f);
+				fclose(f);
+			}
+		}
+		audio_out.SetCoverArt(albumart, albumart_size);
+		audio_out.SetQuality(BMX2WAVParameter::quality);
+	}
+
+
 	printf("Writing file ...\n");
 	{
 		// output format is automatically determined by extension
@@ -300,6 +324,7 @@ int main(int argc, char** argv)
 	}
 
 	// finished!
+	if (albumart) free(albumart);
 	printf("Finished!\n");
 
 	return 0;
