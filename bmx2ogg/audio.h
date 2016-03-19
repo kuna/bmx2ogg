@@ -40,7 +40,7 @@ class AudioData {
 	int samplesize;
 	int pos;
 public:
-	AudioData<T>() { Create(); }
+	AudioData<T>() : samples(0) { Create(); }
 	~AudioData<T>() { Release(); }
 	void Release() {
 		if (samples) { free(samples); }
