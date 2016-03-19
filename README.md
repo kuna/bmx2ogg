@@ -22,6 +22,12 @@
   output audio as wav
 - ```-ogg```
   output audio as ogg *(default)*
+- ```-flac```
+  output audio as flac
+- ```-q```
+  set encoding quality (-1 ~ 1, default: 0.95 - about VBR 400kbps)
+- ```-rate```
+  set audio file speed rate (higher means faster)
 - ```-ow```
   overwrite output file *(default)*
 - ```-autofn, -noautofn```
@@ -29,14 +35,13 @@
 
 ### dependency
 - bmsbelplus
-- libiconv
+- libiconv (glibc)
 - libsndfile
 
 #### easy use
 - just drag & drop any ```*.bmx``` files to program and there'll be converted ogg file!
+- if you want to encode file as flac by default, rename file name including *flac* (ex: ```bmx2wav-flag.exe```)
 
-### known problems / TODO / etc
-- current ogg quality is 0.95 (-1 ~ 1). maybe CBR 375kbps?
-- ```Title/Artist``` metadata is automatically written if you encode as ogg.
-- Raw audio data decoding part is still Sooooo nasty & only supports ```*.ogg/*.wav``` currently. Need to work more about this.
+### etc
+- ```Title/Artist/Genre``` metadata is automatically written if you encode as ogg/flac.
 - Download Executable file from [here](http://kuna.wo.tc/1425).
