@@ -5,8 +5,10 @@
 #define ENABLE_SNDFILE_WINDOWS_PROTOTYPES 1
 typedef wchar_t* LPCWSTR;
 #endif
-#include "sndfile.hh"
+#include <sndfile.hh>
 
+#include "bmx2wav_common.h"
+#include <limits.h>
 #include <string>
 
 #define FREQUENCY 44100

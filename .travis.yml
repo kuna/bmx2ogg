@@ -1,10 +1,7 @@
 language: cpp
 compiler: clang++
 before_script:
-  - sudo apt-get install libvorbis-dev
-  - sudo apt-get install libvorbisenc-dev
-  - sudo apt-get install libvorbisfile-dev
-  - sudo apt-get install libogg-dev
+  - sudo apt-get install libsndfile1-dev
   - git submodule update --init --recursive
   - mkdir build
   - cd build

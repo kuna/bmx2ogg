@@ -1,7 +1,7 @@
 #include "audio.h"
 #include "bmx2wav_common.h"
 #include <algorithm>
-
+#include <string.h>
 
 
 bool Audio::LoadFile(const std::string& path) {
@@ -41,14 +41,17 @@ bool Audio::SaveFile(const std::string& path, int format) {
 	if (!artist.empty()) sf_set_string(file.rawHandle(), SF_STR_ARTIST, artist.c_str());
 	if (!genre.empty()) sf_set_string(file.rawHandle(), SF_STR_GENRE, genre.c_str());
 	sf_set_string(file.rawHandle(), SF_STR_SOFTWARE, "bmx2ogg by @lazykuna");
+	// well, it's not suitable for linux, although it's not working on there either.
+#ifdef _WIN32
 	if (albumart) {
 		SF_CHUNK_INFO c;
-		strcpy_s(c.id, "COVERART");
+		strcpy_s(c.id, 64, "COVERART");
 		c.id_size = strlen(c.id);
 		c.data = albumart;
 		c.datalen = albumart_size;
 		sf_set_chunk(file.rawHandle(), &c);
 	}
+#endif
 
 	// set quality
 	sf_command(file.rawHandle(), SFC_SET_VBR_ENCODING_QUALITY, &quality, sizeof(double));
